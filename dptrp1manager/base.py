@@ -52,6 +52,7 @@ class DPManager(object):
 
         self._check_registered(register)
         self._authenticate()
+        self._build_tree()
 
     def _authenticate(self):
         with open(self._clientid_file, 'r') as f:
@@ -84,23 +85,33 @@ class DPManager(object):
         data = self._dp.list_documents()
         return data
 
-    def _build_tree(self, data):
+    def _build_tree(self):
+        data = self._get_all_contents()
+        added_dirnodes = []
         for entry in data:
             md = self._dataparser.parse(entry)
             pathlist = md['entry_path']
-            lastdirnode = None
             for depth, subpath in enumerate(pathlist[:-1]):
-                n = DPNode(name=subpath, isfile=False, metadata={})
+                fullname = '/' + '/'.join(pathlist[:depth + 1])
                 parent_fullname = '/' + '/'.join(pathlist[:depth])
-                if not parent_fullname == '/':
-                    n.parent = lastdirnode
-                elif self._content_tree is None:
+                if self._content_tree is None and parent_fullname == '/':
+                    n = DPNode(name=subpath, isfile=False, metadata={})
                     self._content_tree = n
-                for pre, _, node in anytree.render.RenderTree(self._content_tree):
-                    print("%s%s" % (pre, node.name))
-                lastdirnode = n
+                elif not parent_fullname == '/':
+                    if not fullname in added_dirnodes:
+                        parent = self._resolver.get(self._content_tree, parent_fullname)
+                        n = DPNode(name=subpath, isfile=False, metadata={})
+                        n.parent = parent
+                        added_dirnodes.append(fullname)
             # now the file node
-            # node = DPNode(name=md['entry_name'], isfile=True, metadata=md)
+            filenode = DPNode(name=md['entry_name'], isfile=True, metadata=md)
+            parent_fullname = '/' + '/'.join(pathlist[:-1])
+            parent = self._resolver.get(self._content_tree, parent_fullname)
+            filenode.parent = parent
+
+    def print_tree(self):
+        for pre, _, node in anytree.render.RenderTree(self._content_tree):
+            print("%s%s" % (pre, node.name))
 
 
 class DPDataParser(object):
@@ -214,8 +225,7 @@ class Uploader(object):
 
 def main():
     dp_mgr = DPManager('192.168.178.78')
-    d = dp_mgr._get_all_contents()
-    dp_mgr._build_tree(d)
+    dp_mgr.print_tree()
 
 if __name__ == '__main__':
     main()
