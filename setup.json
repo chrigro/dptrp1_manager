@@ -1,0 +1,26 @@
+{
+    "name": "dptrp1tools",
+    "version": "0.1.0",
+    "description": "High level python tools to manage a Sony DPT-RP1",
+    "license": "",
+    "authors": [
+        ""
+    ],
+    "emails": [
+        ""
+    ],
+    "namespace_packages": [
+    ],
+    "packages": [
+        "dptrp1tools"
+    ],
+    "install_requires": [
+        "dpt-rp1-py>=0.1.0"
+    ],
+    "scripts": [
+    ],
+    "classifiers": [
+        "Development Status :: 3 - Alpha",
+        "Programming Language :: Python :: 3"
+    ]
+}
