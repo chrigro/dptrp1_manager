@@ -1,4 +1,4 @@
-# dptrp1tools
+# dptrp1manager
 
 A python package to provide high level tools to work with the Sony DPT-RP1.
 This relies heavily on the [https://github.com/janten/dpt-rp1-py](dpt-rp1-py)

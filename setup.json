@@ -1,5 +1,5 @@
 {
-    "name": "dptrp1tools",
+    "name": "dptrp1manager",
     "version": "0.1.0",
     "description": "High level python tools to manage a Sony DPT-RP1",
     "license": "GPLv3",
@@ -12,10 +12,11 @@
     "namespace_packages": [
     ],
     "packages": [
-        "dptrp1tools"
+        "dptrp1manager"
     ],
     "install_requires": [
-        "dpt-rp1-py>=0.1.0"
+        "dpt-rp1-py>=0.1.0",
+        "anytree>=2.4.3"
     ],
     "scripts": [
     ],
