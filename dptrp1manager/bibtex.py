@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-# dptrp1tools, high level tools to interact with the Sony DPT-RP1
-# Copyright © 2018 Christian Gross (christian-gross@gmx.de)
+# dptrp1manager, high level tools to interact with the Sony DPT-RP1
+# Copyright © 2018 Christian Gross
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,4 +18,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from dptrp1.dptrp1 import DigitalPaper
+class DPBibtex(object):
+    """Provide bibtex tools for the DPT-RP1.
+
+    """
+    def __init__(self):
+        super(DPBibtex, self).__init__()
+
