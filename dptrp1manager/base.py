@@ -95,12 +95,14 @@ class DPManager(object):
                 fullname = '/' + '/'.join(pathlist[:depth + 1])
                 parent_fullname = '/' + '/'.join(pathlist[:depth])
                 if self._content_tree is None and parent_fullname == '/':
-                    n = DPNode(name=subpath, isfile=False, metadata={})
+                    n = DPNode(name=subpath, isfile=False, metadata={'entry_path': pathlist[:depth + 1],
+                        'entry_name': subpath})
                     self._content_tree = n
                 elif not parent_fullname == '/':
                     if not fullname in added_dirnodes:
                         parent = self._resolver.get(self._content_tree, parent_fullname)
-                        n = DPNode(name=subpath, isfile=False, metadata={})
+                        n = DPNode(name=subpath, isfile=False, metadata={'entry_path': pathlist[:depth + 1],
+                            'entry_name': subpath})
                         n.parent = parent
                         added_dirnodes.append(fullname)
             # now the file node
@@ -109,9 +111,22 @@ class DPManager(object):
             parent = self._resolver.get(self._content_tree, parent_fullname)
             filenode.parent = parent
 
-    def print_tree(self):
+    def print_full_tree(self):
         for pre, _, node in anytree.render.RenderTree(self._content_tree):
             print("%s%s" % (pre, node.name))
+
+    def print_dir_tree(self):
+        for pre, _, node in anytree.render.RenderTree(self._content_tree):
+            if not node.isfile:
+                print("%s%s" % (pre, node.name))
+
+    def get_folder_contents(self, folder):
+        folder = self._resolver.get(self._content_tree, folder)
+        return folder.children
+
+    def get_standalone_notes(self):
+        folder = self._resolver.get(self._content_tree, '/Document/Note')
+        return folder.children
 
 
 class DPDataParser(object):
@@ -190,7 +205,8 @@ class DPNode(anytree.NodeMixin):
     isfile : bool
         Is the node representing a file? Otherwise it is a dir.
     metadata : dict
-        Parsed file metadata as provided by DPT-RP1.
+        Parsed file metadata as provided by DPT-RP1. For files see
+        DPDataParser, directories have only entry_path and entry_name as keys.
 
     """
     def __init__(self, name, isfile, metadata):
@@ -225,7 +241,14 @@ class Uploader(object):
 
 def main():
     dp_mgr = DPManager('192.168.178.78')
-    dp_mgr.print_tree()
+    dp_mgr.print_full_tree()
+    dp_mgr.print_dir_tree()
+    nodes = dp_mgr.get_folder_contents('/Document/Reader/topics/quantum_simulation')
+    for n in nodes:
+        print(n.name)
+    nodes = dp_mgr.get_standalone_notes()
+    for n in nodes:
+        print(n.name)
 
 if __name__ == '__main__':
     main()
