@@ -106,7 +106,7 @@ class DPManager(object):
                     self._content_tree = n
                 elif not parent_fullname == '/':
                     if not fullname in added_dirnodes:
-                        parent = self._resolver.get(self._content_tree, parent_fullname)
+                        parent = self.get_node(parent_fullname)
                         n = DPNode(name=subpath, isfile=False, metadata={'entry_path': pathlist[:depth + 1],
                             'entry_name': subpath})
                         n.parent = parent
@@ -114,7 +114,7 @@ class DPManager(object):
             # now the file node
             filenode = DPNode(name=md['entry_name'], isfile=True, metadata=md)
             parent_fullname = '/' + '/'.join(pathlist[:-1])
-            parent = self._resolver.get(self._content_tree, parent_fullname)
+            parent = self.get_node(parent_fullname)
             filenode.parent = parent
 
     def print_full_tree(self):
@@ -126,16 +126,21 @@ class DPManager(object):
             if not node.isfile:
                 print("%s%s" % (pre, node.name))
 
+    def print_folder_contents(self, path):
+        if self.node_name_ok(path) and self.node_exists(path, print_error=False):
+            for pre, _, node in anytree.render.RenderTree(self.get_node(path)):
+                print("%s%s" % (pre, node.name))
+
     def get_folder_contents(self, folder):
-        folder = self._resolver.get(self._content_tree, folder)
+        folder = self.get_node(folder)
         return folder.children
 
     def get_standalone_notes(self):
-        folder = self._resolver.get(self._content_tree, '/Document/Note')
+        folder = self.get_node('/Document/Note')
         return folder.children
 
-    def get_file(self, fn):
-        res = self._resolver.get(self._content_tree, fn)
+    def get_node(self, path):
+        res = self._resolver.get(self._content_tree, path)
         return res
 
     def node_exists(self, path, print_error=True):
@@ -143,10 +148,10 @@ class DPManager(object):
 
         """
         try:
-            res = self._resolver.get(self._content_tree, path)
+            self.get_node(path)
             return True
         except anytree.resolver.ResolverError:
-            if print_error: 
+            if print_error:
                 print('ERROR: DPT-RP1 file or folder {} does not exist'.format(path))
             return False
 
@@ -299,7 +304,7 @@ class FileTransferHandler(object):
         For now we just check for the size
 
         """
-        remote_size = self._dp_mgr.get_file(remote).metadata['file_size']
+        remote_size = self._dp_mgr.get_node(remote).metadata['file_size']
         local_size = osp.getsize(local)
         if remote_size == local_size:
             return True
@@ -310,7 +315,7 @@ class FileTransferHandler(object):
         """Check if the local or remote file is newer.
 
         """
-        remote_time = self._dp_mgr.get_file(remote).metadata['modified_date']
+        remote_time = self._dp_mgr.get_node(remote).metadata['modified_date']
         local_time = datetime.datetime.fromtimestamp(osp.getmtime(local))
         print('{}: {}'.format(remote,remote_time))
         print('{}: {}'.format(local,local_time))
@@ -471,14 +476,10 @@ class DPConfig(object):
 
 def main():
     dp_mgr = DPManager('192.168.178.78')
+
     dp_mgr.print_full_tree()
     dp_mgr.print_dir_tree()
-    nodes = dp_mgr.get_folder_contents('/Document/Reader/topics/quantum_simulation')
-    for n in nodes:
-        print(n.name)
-    nodes = dp_mgr.get_standalone_notes()
-    for n in nodes:
-        print(n.name)
+    dp_mgr.print_folder_contents('/Document/Reader/topics/quantum_simulation')
 
     downloader = Downloader(dp_mgr)
     # downloader.download_folder_contents('/Document/Reader/topics/quantum_simulation', '/home/cgross/Downloads')
