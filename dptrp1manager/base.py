@@ -18,6 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import sys
 import os
 import os.path as osp
 import datetime
@@ -40,10 +41,15 @@ class DPManager(object):
         If True, force registration of the client even if key and id files are
         found.
 
+    Attributes
+    ----------
+    dp : DigitalPaper
+        DigitalPaper instance
+
     """
     def __init__(self, addr, register=False):
         super(DPManager, self).__init__()
-        self._dp = DigitalPaper(addr = addr)
+        self.dp = DigitalPaper(addr = addr)
         self._key_file = osp.join(CONFIGDIR, 'dptrp1_key')
         self._clientid_file = osp.join(CONFIGDIR, 'dptrp1_id')
         self._dataparser = DPDataParser()
@@ -59,7 +65,7 @@ class DPManager(object):
             client_id = f.readline().strip()
         with open(self._key_file, 'rb') as f:
             key = f.read()
-        self._dp.authenticate(client_id, key)
+        self.dp.authenticate(client_id, key)
 
     def _check_configpath(self):
         if not osp.exists(CONFIGDIR):
@@ -75,14 +81,14 @@ class DPManager(object):
             self._register()
 
     def _register(self):
-        _, key, device_id = self._dp.register()
+        _, key, device_id = self.dp.register()
         with open(self._key_file, 'w') as f:
             f.write(key)
         with open(self._clientid_file, 'w') as f:
             f.write(device_id)
 
     def _get_all_contents(self):
-        data = self._dp.list_documents()
+        data = self.dp.list_documents()
         return data
 
     def _build_tree(self):
@@ -226,17 +232,69 @@ class DPConfig(object):
 class Downloader(object):
     """Manage downloading of files.
 
+    Parameters
+    ----------
+    dp_mgr : DPManager
+
     """
-    def __init__(self):
+    def __init__(self, dp_mgr):
         super(Downloader, self).__init__()
+        self._dp_mgr = dp_mgr
+
+    def download_file(self, source, dest):
+        data = self._dp_mgr.dp.download(source)
+        with open(dest, 'wb') as f:
+            f.write(data)
+
+    def download_folder_contents(self, source, dest):
+        """Download a full folder from the DPT-RP1.
+
+        Files in the destination folder may be overridden.
+
+        """
+        if not source.startswith('/Document/'):
+            print('ERROR: Source must start with "/Document/"')
+        else:
+            src_files = self._dp_mgr.get_folder_contents(source)
+            if osp.exists(dest):
+                for f in src_files:
+                    src_fp = osp.join(source, f.name)[1:]
+                    print('Downloading {}'.format(src_fp))
+                    self.download_file(src_fp, osp.join(dest, f.name))
+            else:
+                print('ERROR: Destination folder does not exist.')
+                sys.exit(0)
+
+    def download_notes(self, dest):
+        """Download all notes.
+
+        """
+        src_files = self._dp_mgr.get_standalone_notes()
+        if osp.exists(dest):
+            for f in src_files:
+                src_fp = osp.join('/Document/Note', f.name)[1:]
+                print('Downloading {}'.format(src_fp))
+                self.download_file(src_fp, osp.join(dest, f.name))
+        else:
+            print('ERROR: Destination folder does not exist.')
+            sys.exit(0)
 
 
 class Uploader(object):
     """Manage uploading of files.
 
+    Parameters
+    ----------
+    dp_mgr : DPManager
+
     """
-    def __init__(self):
+    def __init__(self, dp_mgr):
         super(Uploader, self).__init__()
+        self._dp_mgr = dp_mgr
+
+    def upload_file(self, source, dest):
+        with open(source, 'rb') as f:
+            self._dp_mgr.dp.upload(f, dest)
 
 
 def main():
@@ -249,6 +307,10 @@ def main():
     nodes = dp_mgr.get_standalone_notes()
     for n in nodes:
         print(n.name)
+
+    downloader = Downloader(dp_mgr)
+    # downloader.download_folder_contents('/Document/Reader/topics/quantum_simulation', '/home/cgross/Downloads')
+    downloader.download_notes('/home/cgross/Downloads')
 
 if __name__ == '__main__':
     main()
