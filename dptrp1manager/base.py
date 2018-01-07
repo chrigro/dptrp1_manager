@@ -134,6 +134,10 @@ class DPManager(object):
         folder = self._resolver.get(self._content_tree, '/Document/Note')
         return folder.children
 
+    def get_file(self, fn):
+        res = self._resolver.get(self._content_tree, fn)
+        return res
+
 
 class DPDataParser(object):
     """Parser for the data returned for each document.
@@ -219,6 +223,7 @@ class DPNode(anytree.NodeMixin):
         super(DPNode, self).__init__()
         self.name = name
         self.isfile = isfile
+        self.metadata = metadata
 
 
 class DPConfig(object):
@@ -241,15 +246,70 @@ class Downloader(object):
         super(Downloader, self).__init__()
         self._dp_mgr = dp_mgr
 
-    def download_file(self, source, dest):
-        data = self._dp_mgr.dp.download(source)
-        with open(dest, 'wb') as f:
-            f.write(data)
+    def _is_equal(self, source, dest):
+        """Check if two files are equal.
 
-    def download_folder_contents(self, source, dest):
+        For now we just check for the size
+
+        """
+        source_size = self._dp_mgr.get_file(source).metadata['file_size']
+        dest_size = osp.getsize(dest)
+        if source_size == dest_size:
+            return True
+        else:
+            return False
+
+    def _check_datetime(self, source, dest):
+        """Check if the dest or source is newer.
+
+        """
+        source_time = self._dp_mgr.get_file(source).metadata['modified_date']
+        dest_time = datetime.datetime.fromtimestamp(osp.getmtime(dest))
+        if source_size > dest_size:
+            return 'source_newer'
+        else:
+            return 'dest_newer'
+
+    def download_file(self, source, dest, policy='dp_wins'):
+        """Download a file from the DPT-RP1.
+
+        Parameter
+        ---------
+        source : string
+            Full path to the file on the DPT-RP1
+        dest : string
+            Full path to the destination including the file name
+        policy : 'dp_wins', 'loc_wins', 'newer'
+            Decide what to do if the file is already present.
+
+        """
+        do_download = True
+        if not source.startswith('/Document/'):
+            print('ERROR: Source must start with "/Document/"')
+        else:
+            if osp.exists(dest):
+                if self._is_equal(source, dest):
+                    do_download = False
+                    print('Skipping download of {}. Already present and equal.'.format(source))
+                else:
+                    if policy == 'loc_wins':
+                        do_download = False
+                        print('Skipping download of {}. Already present and loc_wins.'.format(source))
+                    elif policy == 'dp_wins':
+                        do_download = True
+                    elif policy == 'newer':
+                        if self._check_datetime(source, dest) == 'source_newer':
+                            do_download = True
+                        else:
+                            do_download = False
+                            print('Skipping download of {}. Already present and local file newer.'.format(source))
+        if do_download:
+            data = self._dp_mgr.dp.download(source[1:])
+            with open(dest, 'wb') as f:
+                f.write(data)
+
+    def download_folder_contents(self, source, dest, policy='dp_wins'):
         """Download a full folder from the DPT-RP1.
-
-        Files in the destination folder may be overridden.
 
         """
         if not source.startswith('/Document/'):
@@ -258,23 +318,23 @@ class Downloader(object):
             src_files = self._dp_mgr.get_folder_contents(source)
             if osp.exists(dest):
                 for f in src_files:
-                    src_fp = osp.join(source, f.name)[1:]
+                    src_fp = osp.join(source, f.name)
                     print('Downloading {}'.format(src_fp))
-                    self.download_file(src_fp, osp.join(dest, f.name))
+                    self.download_file(src_fp, osp.join(dest, f.name), policy)
             else:
                 print('ERROR: Destination folder does not exist.')
                 sys.exit(0)
 
-    def download_notes(self, dest):
+    def download_notes(self, dest, policy='dp_wins'):
         """Download all notes.
 
         """
         src_files = self._dp_mgr.get_standalone_notes()
         if osp.exists(dest):
             for f in src_files:
-                src_fp = osp.join('/Document/Note', f.name)[1:]
+                src_fp = osp.join('/Document/Note', f.name)
                 print('Downloading {}'.format(src_fp))
-                self.download_file(src_fp, osp.join(dest, f.name))
+                self.download_file(src_fp, osp.join(dest, f.name), policy)
         else:
             print('ERROR: Destination folder does not exist.')
             sys.exit(0)
