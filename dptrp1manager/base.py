@@ -234,8 +234,8 @@ class DPConfig(object):
         super(DPConfig, self).__init__()
 
 
-class Downloader(object):
-    """Manage downloading of files.
+class FileTransferHandler(object):
+    """Base class for the Downloader and Uploader.
 
     Parameters
     ----------
@@ -243,7 +243,7 @@ class Downloader(object):
 
     """
     def __init__(self, dp_mgr):
-        super(Downloader, self).__init__()
+        super(FileTransferHandler, self).__init__()
         self._dp_mgr = dp_mgr
 
     def _is_equal(self, source, dest):
@@ -270,6 +270,28 @@ class Downloader(object):
         else:
             return 'dest_newer'
 
+    def _dpfile_name_ok(self, name):
+        if not name.startswith('/Document/'):
+            print('ERROR: DPT-RP1 file name must start with "/Document/"')
+            return False
+        else:
+            return True
+
+    def _local_path_ok(self, path):
+        if not osp.exists(path):
+            print('ERROR: Local file or folder does not exist.')
+            return False
+        else:
+            return True
+
+
+class Downloader(FileTransferHandler):
+    """Manage downloading of files.
+
+    """
+    def __init__(self, dp_mgr):
+        super(Downloader, self).__init__(dp_mgr)
+
     def download_file(self, source, dest, policy='dp_wins'):
         """Download a file from the DPT-RP1.
 
@@ -284,9 +306,7 @@ class Downloader(object):
 
         """
         do_download = True
-        if not source.startswith('/Document/'):
-            print('ERROR: Source must start with "/Document/"')
-        else:
+        if self._dpfile_name_ok(source) and self._local_path_ok(osp.dirname(dest)):
             if osp.exists(dest):
                 if self._is_equal(source, dest):
                     do_download = False
@@ -312,18 +332,13 @@ class Downloader(object):
         """Download a full folder from the DPT-RP1.
 
         """
-        if not source.startswith('/Document/'):
-            print('ERROR: Source must start with "/Document/"')
-        else:
+        if self._dpfile_name_ok(source):
             src_files = self._dp_mgr.get_folder_contents(source)
-            if osp.exists(dest):
+            if self._local_path_ok(dest):
                 for f in src_files:
                     src_fp = osp.join(source, f.name)
                     print('Downloading {}'.format(src_fp))
                     self.download_file(src_fp, osp.join(dest, f.name), policy)
-            else:
-                print('ERROR: Destination folder does not exist.')
-                sys.exit(0)
 
     def download_notes(self, dest, policy='dp_wins'):
         """Download all notes.
@@ -340,17 +355,12 @@ class Downloader(object):
             sys.exit(0)
 
 
-class Uploader(object):
+class Uploader(FileTransferHandler):
     """Manage uploading of files.
-
-    Parameters
-    ----------
-    dp_mgr : DPManager
 
     """
     def __init__(self, dp_mgr):
-        super(Uploader, self).__init__()
-        self._dp_mgr = dp_mgr
+        super(Uploader, self).__init__(dp_mgr)
 
     def upload_file(self, source, dest):
         with open(source, 'rb') as f:
