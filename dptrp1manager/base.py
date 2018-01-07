@@ -138,6 +138,61 @@ class DPManager(object):
         res = self._resolver.get(self._content_tree, fn)
         return res
 
+    def node_exists(self, path, print_error=True):
+        """Check if a node exists on the DPT-RP1.
+
+        """
+        try:
+            res = self._resolver.get(self._content_tree, path)
+            return True
+        except anytree.resolver.ResolverError:
+            if print_error: 
+                print('ERROR: DPT-RP1 file or folder {} does not exist'.format(path))
+            return False
+
+    def node_name_ok(self, name):
+        if not name.startswith('/Document/'):
+            print('ERROR: DPT-RP1 file or folder name must start with "/Document/"')
+            return False
+        else:
+            return True
+
+    def file_name_ok(self, name):
+        splitname = name.rsplit('.', maxsplit=1)
+        if len(splitname) == 2 and splitname[1] == 'pdf':
+            return True
+        else:
+            print('ERROR: DPT-RP1 file name must end with ".pdf"')
+            return False
+
+    def mkdir(self, path):
+        """Create a new directory on the DPT-RP1.
+
+        """
+        if path.endswith('/'):
+            path = path[:-1]
+        if (self.node_name_ok(path) and
+                self.node_exists(path.rsplit('/', maxsplit=1)[0])):
+            if not self.node_exists(path, print_error=False):
+                print('Creating folder {}'.format(path))
+                self.dp.new_folder(path[1:])
+            else:
+                print('ERROR: DPT-RP1 has already a folder {}'.format(path))
+
+    def rmdir(self, path):
+        """Delete a directory on the DPT-RP1.
+
+        """
+        # TODO: Not yet possible with dpt-rp1-py
+        pass
+
+    def rmfile(self, path):
+        """Delete a file on the DPT-RP1.
+
+        """
+        # TODO: Not yet possible with dpt-rp1-py
+        pass
+
 
 class DPDataParser(object):
     """Parser for the data returned for each document.
@@ -226,14 +281,6 @@ class DPNode(anytree.NodeMixin):
         self.metadata = metadata
 
 
-class DPConfig(object):
-    """Represent the configuration of the DPT-RP1.
-
-    """
-    def __init__(self):
-        super(DPConfig, self).__init__()
-
-
 class FileTransferHandler(object):
     """Base class for the Downloader and Uploader.
 
@@ -246,36 +293,31 @@ class FileTransferHandler(object):
         super(FileTransferHandler, self).__init__()
         self._dp_mgr = dp_mgr
 
-    def _is_equal(self, source, dest):
+    def _is_equal(self, local, remote):
         """Check if two files are equal.
 
         For now we just check for the size
 
         """
-        source_size = self._dp_mgr.get_file(source).metadata['file_size']
-        dest_size = osp.getsize(dest)
-        if source_size == dest_size:
+        remote_size = self._dp_mgr.get_file(remote).metadata['file_size']
+        local_size = osp.getsize(local)
+        if remote_size == local_size:
             return True
         else:
             return False
 
-    def _check_datetime(self, source, dest):
-        """Check if the dest or source is newer.
+    def _check_datetime(self, local, remote):
+        """Check if the local or remote file is newer.
 
         """
-        source_time = self._dp_mgr.get_file(source).metadata['modified_date']
-        dest_time = datetime.datetime.fromtimestamp(osp.getmtime(dest))
-        if source_size > dest_size:
-            return 'source_newer'
+        remote_time = self._dp_mgr.get_file(remote).metadata['modified_date']
+        local_time = datetime.datetime.fromtimestamp(osp.getmtime(local))
+        print('{}: {}'.format(remote,remote_time))
+        print('{}: {}'.format(local,local_time))
+        if remote_time > local_time:
+            return 'remote_newer'
         else:
-            return 'dest_newer'
-
-    def _dpfile_name_ok(self, name):
-        if not name.startswith('/Document/'):
-            print('ERROR: DPT-RP1 file name must start with "/Document/"')
-            return False
-        else:
-            return True
+            return 'local_newer'
 
     def _local_path_ok(self, path):
         if not osp.exists(path):
@@ -292,7 +334,7 @@ class Downloader(FileTransferHandler):
     def __init__(self, dp_mgr):
         super(Downloader, self).__init__(dp_mgr)
 
-    def download_file(self, source, dest, policy='dp_wins'):
+    def download_file(self, source, dest, policy):
         """Download a file from the DPT-RP1.
 
         Parameter
@@ -301,38 +343,41 @@ class Downloader(FileTransferHandler):
             Full path to the file on the DPT-RP1
         dest : string
             Full path to the destination including the file name
-        policy : 'dp_wins', 'loc_wins', 'newer'
+        policy : 'remote_wins', 'local_wins', 'newer'
             Decide what to do if the file is already present.
 
         """
-        do_download = True
-        if self._dpfile_name_ok(source) and self._local_path_ok(osp.dirname(dest)):
+        if (self._dp_mgr.node_name_ok(source) and
+                self._dp_mgr.node_exists(source) and
+                self._local_path_ok(osp.dirname(dest))):
+            do_transfer = True
             if osp.exists(dest):
-                if self._is_equal(source, dest):
-                    do_download = False
+                if self._is_equal(dest, source):
+                    do_transfer = False
                     print('Skipping download of {}. Already present and equal.'.format(source))
                 else:
-                    if policy == 'loc_wins':
-                        do_download = False
-                        print('Skipping download of {}. Already present and loc_wins.'.format(source))
-                    elif policy == 'dp_wins':
-                        do_download = True
+                    if policy == 'local_wins':
+                        do_transfer = False
+                        print('Skipping download of {}. Already present and local_wins.'.format(source))
+                    elif policy == 'remote_wins':
+                        do_transfer = True
                     elif policy == 'newer':
-                        if self._check_datetime(source, dest) == 'source_newer':
-                            do_download = True
+                        if self._check_datetime(dest, source) == 'remote_newer':
+                            do_transfer = True
                         else:
-                            do_download = False
+                            do_transfer = False
                             print('Skipping download of {}. Already present and local file newer.'.format(source))
-        if do_download:
-            data = self._dp_mgr.dp.download(source[1:])
-            with open(dest, 'wb') as f:
-                f.write(data)
+            if do_transfer:
+                print('Downloading {} to {}'.format(source, dest))
+                data = self._dp_mgr.dp.download(source[1:])
+                with open(dest, 'wb') as f:
+                    f.write(data)
 
-    def download_folder_contents(self, source, dest, policy='dp_wins'):
+    def download_folder_contents(self, source, dest, policy):
         """Download a full folder from the DPT-RP1.
 
         """
-        if self._dpfile_name_ok(source):
+        if self._dp_mgr.node_name_ok(source) and self._dp_mgr.node_exists(source):
             src_files = self._dp_mgr.get_folder_contents(source)
             if self._local_path_ok(dest):
                 for f in src_files:
@@ -340,19 +385,15 @@ class Downloader(FileTransferHandler):
                     print('Downloading {}'.format(src_fp))
                     self.download_file(src_fp, osp.join(dest, f.name), policy)
 
-    def download_notes(self, dest, policy='dp_wins'):
+    def download_standalone_notes(self, dest, policy):
         """Download all notes.
 
         """
         src_files = self._dp_mgr.get_standalone_notes()
-        if osp.exists(dest):
+        if self._local_path_ok(dest):
             for f in src_files:
                 src_fp = osp.join('/Document/Note', f.name)
-                print('Downloading {}'.format(src_fp))
                 self.download_file(src_fp, osp.join(dest, f.name), policy)
-        else:
-            print('ERROR: Destination folder does not exist.')
-            sys.exit(0)
 
 
 class Uploader(FileTransferHandler):
@@ -362,9 +403,70 @@ class Uploader(FileTransferHandler):
     def __init__(self, dp_mgr):
         super(Uploader, self).__init__(dp_mgr)
 
-    def upload_file(self, source, dest):
-        with open(source, 'rb') as f:
-            self._dp_mgr.dp.upload(f, dest)
+    def upload_file(self, source, dest, policy):
+        """Upload a file to the DPT-RP1.
+
+        Parameter
+        ---------
+        source : string
+            Full path to the source
+        dest : string
+            Full path to the file on the DPT-RP1 (incl. file name)
+        policy : 'remote_wins', 'local_wins', 'newer'
+            Decide what to do if the file is already present.
+
+        """
+        if (self._dp_mgr.node_name_ok(dest) and
+                # FIXME: Can't check for folder existance as long as there is no way to get folders from the dpt-rp1. the current method is blind to empty folders.
+                # self._dp_mgr.node_exists(dest.rsplit('/', maxsplit=1)[0]) and
+                self._local_path_ok(source) and
+                self._dp_mgr.file_name_ok(dest)):
+            do_transfer = True
+            if self._dp_mgr.node_exists(dest, print_error=False):
+                if self._is_equal(source, dest):
+                    do_transfer = False
+                    print('Skipping upload of {}. Already present and equal.'.format(source))
+                else:
+                    if policy == 'local_wins':
+                        # FIXME: Overriding  of remote files fails in dpt-rp1-py
+                        do_transfer = True
+                    elif policy == 'remote_wins':
+                        do_transfer = False
+                        print('Skipping upload of {}. Already present and remote_wins.'.format(source))
+                    elif policy == 'newer':
+                        if self._check_datetime(source, dest) == 'local_newer':
+                            # FIXME: Overriding  of remote files fails in dpt-rp1-py
+                            do_transfer = True
+                        else:
+                            do_transfer = False
+                            print('Skipping upload of {}. Already present and remote file newer.'.format(source))
+            if do_transfer:
+                print('Uploading {} to {}'.format(source, dest))
+                with open(source, 'rb') as f:
+                    self._dp_mgr.dp.upload(f, dest[1:])
+
+    def upload_folder_contents(self, source, dest, policy):
+        """Upload a full folder to the DPT-RP1.
+
+        """
+        if self._local_path_ok(source):
+            src_files = (os.path.join(source, fn) for fn in os.listdir(source)
+                    if os.path.isfile(os.path.join(source, fn)))
+            # FIXME: Can't check for folder existance as long as there is no way to get folders from the dpt-rp1. the current method is blind to empty folders.
+            # if self._dp_mgr.node_name_ok(dest) and self._dp_mgr.node_exists(dest):
+            if self._dp_mgr.node_name_ok(dest):
+                for f in src_files:
+                    dest_fn = dest + '/' + osp.basename(f)
+                    self.upload_file(f, dest_fn, policy)
+
+
+class DPConfig(object):
+    """Represent the configuration of the DPT-RP1.
+
+    """
+    def __init__(self):
+        super(DPConfig, self).__init__()
+        # TODO Implement this class
 
 
 def main():
@@ -380,7 +482,14 @@ def main():
 
     downloader = Downloader(dp_mgr)
     # downloader.download_folder_contents('/Document/Reader/topics/quantum_simulation', '/home/cgross/Downloads')
-    downloader.download_notes('/home/cgross/Downloads')
+    downloader.download_standalone_notes('/home/cgross/Downloads', policy='remote_wins')
+
+    # dp_mgr.mkdir('/Document/Reader/test')
+
+    uploader = Uploader(dp_mgr)
+    uploader.upload_folder_contents('/home/cgross/Downloads/test', '/Document/Reader/test', policy='remote_wins')
+
+
 
 if __name__ == '__main__':
     main()
