@@ -65,7 +65,9 @@ class DPManager(object):
             client_id = f.readline().strip()
         with open(self._key_file, 'rb') as f:
             key = f.read()
-        self.dp.authenticate(client_id, key)
+        res = self.dp.authenticate(client_id, key)
+        if res is False:
+            sys.exit(1)
 
     def _check_configpath(self):
         if not osp.exists(CONFIGDIR):
@@ -81,41 +83,52 @@ class DPManager(object):
             self._register()
 
     def _register(self):
-        _, key, device_id = self.dp.register()
-        with open(self._key_file, 'w') as f:
-            f.write(key)
-        with open(self._clientid_file, 'w') as f:
-            f.write(device_id)
+        res = self.dp.register()
+        if res is not None:
+            key = res[1]
+            device_id = res[2]
+            with open(self._key_file, 'w') as f:
+                f.write(key)
+            with open(self._clientid_file, 'w') as f:
+                f.write(device_id)
+        else:
+            sys.exit(1)
 
     def _get_all_contents(self):
-        data = self.dp.list_documents()
+        data = self.dp.list_all()
         return data
 
     def _build_tree(self):
         data = self._get_all_contents()
         added_dirnodes = []
+        # first folders
         for entry in data:
-            md = self._dataparser.parse(entry)
-            pathlist = md['entry_path']
-            for depth, subpath in enumerate(pathlist[:-1]):
-                fullname = '/' + '/'.join(pathlist[:depth + 1])
-                parent_fullname = '/' + '/'.join(pathlist[:depth])
-                if self._content_tree is None and parent_fullname == '/':
-                    n = DPNode(name=subpath, isfile=False, metadata={'entry_path': pathlist[:depth + 1],
-                        'entry_name': subpath})
-                    self._content_tree = n
-                elif not parent_fullname == '/':
-                    if not fullname in added_dirnodes:
-                        parent = self.get_node(parent_fullname)
+            if entry['entry_type'] == 'folder':
+                md = self._dataparser.parsefolder(entry)
+                pathlist = md['entry_path']
+                for depth, subpath in enumerate(pathlist):
+                    fullname = '/' + '/'.join(pathlist[:depth + 1])
+                    parent_fullname = '/' + '/'.join(pathlist[:depth])
+                    if self._content_tree is None and parent_fullname == '/':
                         n = DPNode(name=subpath, isfile=False, metadata={'entry_path': pathlist[:depth + 1],
                             'entry_name': subpath})
-                        n.parent = parent
-                        added_dirnodes.append(fullname)
-            # now the file node
-            filenode = DPNode(name=md['entry_name'], isfile=True, metadata=md)
-            parent_fullname = '/' + '/'.join(pathlist[:-1])
-            parent = self.get_node(parent_fullname)
-            filenode.parent = parent
+                        self._content_tree = n
+                    elif not parent_fullname == '/':
+                        if not fullname in added_dirnodes:
+                            parent = self.get_node(parent_fullname)
+                            n = DPNode(name=subpath, isfile=False, metadata={'entry_path': pathlist[:depth + 1],
+                                'entry_name': subpath})
+                            n.parent = parent
+                            added_dirnodes.append(fullname)
+        # now files
+        for entry in data:
+            if entry['entry_type'] == 'document':
+                md = self._dataparser.parsefile(entry)
+                pathlist = md['entry_path']
+                filenode = DPNode(name=md['entry_name'], isfile=True, metadata=md)
+                parent_fullname = '/' + '/'.join(pathlist[:-1])
+                parent = self.get_node(parent_fullname)
+                filenode.parent = parent
 
     def print_full_tree(self):
         for pre, _, node in anytree.render.RenderTree(self._content_tree):
@@ -265,8 +278,8 @@ class DPDataParser(object):
     def __init__(self):
         super(DPDataParser, self).__init__()
 
-    def parse(self, data):
-        """Parse the entry data.
+    def parsefile(self, data):
+        """Parse the entry data for files.
 
         Returns
         -------
@@ -308,6 +321,33 @@ class DPDataParser(object):
         res['entry_path'] = self._splitpath(data['entry_path'])
         res['created_date'] = self._string_to_datetime(data['created_date'])
         res['modified_date'] = self._string_to_datetime(data['modified_date'])
+        return res
+
+    def parsefolder(self, data):
+        """Parse the entry data for folders.
+
+        Returns
+        -------
+        dict
+            Parsed metadata dictionary. It has the following structure:
+            'entry_id': string
+            'entry_name': string (folder name)
+            'entry_type': 'folder'
+            'is_new': bool
+            'parent_folder_id': string
+            'entry_path': list of strings (full path)
+            'created_date': datetime
+
+        """
+        res = {}
+        # some keys are easy to parse
+        res['entry_id'] = data['entry_id']
+        res['entry_name'] = data['entry_name']
+        res['entry_type'] = data['entry_type']
+        res['is_new'] = bool(data['is_new'])
+        res['parent_folder_id'] = data['parent_folder_id']
+        res['entry_path'] = self._splitpath(data['entry_path'])
+        res['created_date'] = self._string_to_datetime(data['created_date'])
         return res
 
     def _string_to_datetime(self, string):
@@ -540,22 +580,20 @@ def main():
     dp_mgr.get_storage()
     dp_mgr.get_battery()
 
-    # dp_mgr.print_full_tree()
-    # dp_mgr.print_dir_tree()
-    # dp_mgr.print_folder_contents('/Document/Reader/topics/quantum_simulation')
+    dp_mgr.print_full_tree()
+    dp_mgr.print_dir_tree()
+    dp_mgr.print_folder_contents('/Document/Reader/topics/quantum_simulation')
 
-    # dp_mgr.list_all()
-    # dp_mgr.del_folder('/Document/testfolder')
 
     downloader = Downloader(dp_mgr)
     # downloader.download_folder_contents('/Document/Reader/topics/quantum_simulation', '/home/cgross/Downloads')
     # downloader.download_standalone_notes('/home/cgross/Downloads', policy='remote_wins')
 
-    # dp_mgr.mkdir('/Document/testfolder')
+    # dp_mgr.del_folder('/Document/testfolder')
+    dp_mgr.mkdir('/Document/testfolder')
 
     uploader = Uploader(dp_mgr)
     # uploader.upload_folder_contents('/home/cgross/Reader/projects/physikjournal', '/Document/Reader/projects/physikjournal', policy='remote_wins')
-
     # uploader.upload_folder_contents('/home/cgross/Downloads/test', '/Document/Reader/test', policy='remote_wins')
 
 
