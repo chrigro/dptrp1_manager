@@ -184,6 +184,65 @@ class DPManager(object):
             else:
                 print('ERROR: DPT-RP1 has already a folder {}'.format(path))
 
+    def get_config(self):
+        timeout = self.dp.get_timeout()
+        date_format = self.dp.get_date_format()
+        time_format = self.dp.get_time_format()
+        timezone = self.dp.get_timezone()
+        owner = self.dp.get_owner()
+        print('---Config---')
+        print('owner: {}'.format(owner))
+        print('timeout: {}'.format(timeout))
+        print('date_format: {}'.format(date_format))
+        print('time_format: {}'.format(time_format))
+        print('timezone: {}'.format(timezone))
+
+    def set_timeout(self, value):
+        self.dp.set_timeout(value)
+
+    def set_owner(self, value):
+        self.dp.set_owner(value)
+
+    def set_date_format(self, value):
+        self.dp.set_date_format(value)
+
+    def set_time_format(self, value):
+        self.dp.set_time_format(value)
+
+    def set_timezone(self, value):
+        self.dp.set_timezone(value)
+
+    def get_storage(self):
+        storage = self.dp.get_storage()
+        free = float(storage['available'])
+        total = float(storage['capacity'])
+        print('---Storage---')
+        print('{:2.3f} GB of {:2.3f} GB available ({:2.0f}%)'
+                .format(free/1e9, total/1e9, free/total*100))
+
+    def get_battery(self):
+        battery = self.dp.get_battery()
+        print('---Battery---')
+        print('health: {}'.format(battery['health']))
+        print('level: {}%'.format(battery['level']))
+        print('status: {}'.format(battery['status']))
+        print('plugged: {}'.format(battery['plugged']))
+        print('pen: {}%'.format(battery['pen']))
+
+    def get_system_info(self):
+        fw_version = self.dp.get_firmware_version()
+        mac_address = self.dp.get_mac_address()
+        info = self.dp.get_info()
+        print('---System---')
+        print('model_name: {}'.format(info['model_name']))
+        print('serial_number: {}'.format(info['serial_number']))
+        print('fw_version: {}'.format(fw_version))
+        print('mac_address: {}'.format(mac_address))
+
+    # TODO
+    def list_all(self):
+        self.dp.list_all()
+
     def rmdir(self, path):
         """Delete a directory on the DPT-RP1.
 
@@ -475,20 +534,29 @@ class DPConfig(object):
 
 
 def main():
-    dp_mgr = DPManager('192.168.178.78')
+    dp_mgr = DPManager('digitalpaper.local')
+    dp_mgr.get_system_info()
+    dp_mgr.get_config()
+    dp_mgr.get_storage()
+    dp_mgr.get_battery()
 
-    dp_mgr.print_full_tree()
-    dp_mgr.print_dir_tree()
-    dp_mgr.print_folder_contents('/Document/Reader/topics/quantum_simulation')
+    # dp_mgr.print_full_tree()
+    # dp_mgr.print_dir_tree()
+    # dp_mgr.print_folder_contents('/Document/Reader/topics/quantum_simulation')
+
+    # dp_mgr.list_all()
+    # dp_mgr.del_folder('/Document/testfolder')
 
     downloader = Downloader(dp_mgr)
     # downloader.download_folder_contents('/Document/Reader/topics/quantum_simulation', '/home/cgross/Downloads')
-    downloader.download_standalone_notes('/home/cgross/Downloads', policy='remote_wins')
+    # downloader.download_standalone_notes('/home/cgross/Downloads', policy='remote_wins')
 
-    # dp_mgr.mkdir('/Document/Reader/test')
+    # dp_mgr.mkdir('/Document/testfolder')
 
     uploader = Uploader(dp_mgr)
-    uploader.upload_folder_contents('/home/cgross/Downloads/test', '/Document/Reader/test', policy='remote_wins')
+    # uploader.upload_folder_contents('/home/cgross/Reader/projects/physikjournal', '/Document/Reader/projects/physikjournal', policy='remote_wins')
+
+    # uploader.upload_folder_contents('/home/cgross/Downloads/test', '/Document/Reader/test', policy='remote_wins')
 
 
 
