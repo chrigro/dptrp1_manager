@@ -366,9 +366,10 @@ class FileTransferHandler(object):
         else:
             return 'local_newer'
 
-    def _local_path_ok(self, path):
+    def _local_path_ok(self, path, printerr=True):
         if not osp.exists(path):
-            print('ERROR: Local file or folder does not exist.')
+            if printerr:
+                print('ERROR: Local file or folder {} does not exist.'.format(path))
             return False
         else:
             return True
@@ -448,8 +449,22 @@ class Downloader(FileTransferHandler):
         """Download recursively.
 
         """
-        pass
-        # TODO
+        if not self._local_path_ok(dest):
+            return None
+        if self._dp_mgr.node_name_ok(source) and self._dp_mgr.node_exists(source):
+            src_nodes = self._dp_mgr.get_folder_contents(source)
+            for f in src_nodes:
+                if f.isfile:
+                    src_fp = osp.join(source, f.name)
+                    print('Downloading {}'.format(src_fp))
+                    self.download_file(src_fp, osp.join(dest, f.name), policy)
+                else:
+                    new_local_path = osp.join(dest, f.name)
+                    pathlist = f.metadata['entry_path']
+                    new_remote_path = '/' + '/'.join(pathlist[:])
+                    if not self._local_path_ok(new_local_path, printerr=False):
+                        os.mkdir(new_local_path)
+                    self.download_recursively(new_remote_path, new_local_path, policy)
 
 
 class Uploader(FileTransferHandler):
@@ -714,7 +729,7 @@ def main():
     downloader = Downloader(dp_mgr)
     uploader = Uploader(dp_mgr)
 
-    print(config.timeout)
+
 
     # dp_mgr.print_full_tree()
     dp_mgr.print_dir_tree()
@@ -724,6 +739,7 @@ def main():
     # dp_mgr.delete_template('test')
     # dp_mgr.add_template('testA5', '/home/cgross/Downloads/test2.pdf')
 
+    downloader.download_recursively('/Document/Reader/projects', '/home/cgross/Downloads/test', 'remote_wins')
 
     # downloader.download_folder_contents('/Document/Reader/topics/quantum_simulation', '/home/cgross/Downloads')
     # downloader.download_standalone_notes('/home/cgross/Downloads', policy='remote_wins')
