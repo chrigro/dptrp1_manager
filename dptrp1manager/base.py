@@ -786,6 +786,79 @@ class DPConfig(object):
         mac_address = self._dp_mgr.dp.get_mac_address()
         return mac_address
 
+    def list_wifi(self):
+        """List known wifis.
+
+        """
+        return self._dp_mgr.dp.wifi_list()
+
+    def scan_wifi(self):
+        """Scan wifis
+
+        """
+        return self._dp_mgr.dp.wifi_scan()
+
+    def add_wifi(self, ssid, security, passwd, dhcp=True, static_address='', gateway='',
+            network_mask='', dns1='', dns2='', proxy=False):
+        """Add a wifi network.
+
+        Parameters
+        ----------
+        ssid : string
+            Wifi network name
+        security : string ('nonsec', 'psk')
+            Wifi security
+        passwd : string
+            Password
+        dhcp : bool (default True)
+            Use dhcp for ip address management?
+        static_address : string (default '')
+            Static ip
+        gateway : string (default '')
+            Gateway ip
+        network_mask : integer
+            Integer determining the net mask (e.g. 24)
+        dns1 : string (default '')
+            DNS ip
+        dns2 : string (default '')
+            DNS ip
+        proxy : bool (default False)
+            Use a proxy?
+
+        """
+        self._dp_mgr.dp.configure_wifi(ssid, security, passwd, dhcp,
+                static_address, gateway, network_mask, dns1, dns2, proxy)
+
+    def delete_wifi(self, ssid, security):
+        """Delete a known wifi
+
+        Parameters
+        ----------
+        ssid : string
+            Wifi network name
+        security : string ('nonsec', 'psk')
+            Wifi security
+
+        """
+        self._dp_mgr.dp.delete_wifi(ssid, security)
+
+    @property
+    def wifi_enabled(self):
+        """Is wifi enabled?
+
+        """
+        val = self._dp_mgr.dp.wifi_enabled()['value']
+        if val == 'on':
+            return True
+        else: 
+            return False
+
+    def enable_wifi(self):
+        self._dp_mgr.dp.enable_wifi()
+
+    def disable_wifi(self):
+        self._dp_mgr.dp.disable_wifi()
+
 
 def main():
     dp_mgr = DPManager('digitalpaper.local')
@@ -794,10 +867,11 @@ def main():
     uploader = Uploader(dp_mgr)
 
 
+    # print(config.wifi_enabled)
 
     # dp_mgr.print_full_tree()
     dp_mgr.print_dir_tree()
-    dp_mgr.print_folder_contents('/Document/Reader/topics')
+    # dp_mgr.print_folder_contents('/Document/Reader/topics')
 
     # dp_mgr.rename_template('daily_planner', 'planner')
     # dp_mgr.delete_template('test')
