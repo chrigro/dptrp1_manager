@@ -139,17 +139,28 @@ class DPManager(object):
 
     def print_full_tree(self):
         for pre, _, node in anytree.render.RenderTree(self._content_tree):
-            print("%s%s" % (pre, node.name))
+            print("{}{}".format(pre, node.name))
 
     def print_dir_tree(self):
         for pre, _, node in anytree.render.RenderTree(self._content_tree):
             if not node.isfile:
-                print("%s%s" % (pre, node.name))
+                print("{}{}".format(pre, node.name))
+
+    def _sizeof_fmt(self, num, suffix='B'):
+        for unit in ['','k','M','G','T','P','E','Z']:
+            if abs(num) < 1024.0:
+                return '{:3.1f}{}{}'.format(num, unit, suffix)
+            num /= 1024.0
+        return '{:.1f}{}{}'.format(num, 'Y', suffix)
 
     def print_folder_contents(self, path):
         if self.node_name_ok(path) and self.node_exists(path, print_error=False):
             for pre, _, node in anytree.render.RenderTree(self.get_node(path)):
-                print("%s%s" % (pre, node.name))
+                if node.isfile:
+                    size = node.metadata['file_size']
+                    print("{}[{}] {}".format(pre, self._sizeof_fmt(size), node.name))
+                else:
+                    print("{}{}".format(pre, node.name))
 
     def get_folder_contents(self, folder):
         folder = self.get_node(folder)
@@ -786,7 +797,7 @@ def main():
 
     # dp_mgr.print_full_tree()
     dp_mgr.print_dir_tree()
-    # dp_mgr.print_folder_contents('/Document/Reader/topics/quantum_simulation')
+    dp_mgr.print_folder_contents('/Document/Reader/topics')
 
     # dp_mgr.rename_template('daily_planner', 'planner')
     # dp_mgr.delete_template('test')
