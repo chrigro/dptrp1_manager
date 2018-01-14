@@ -252,7 +252,6 @@ class DPManager(object):
         print('fw_version: {}'.format(fw_version))
         print('mac_address: {}'.format(mac_address))
 
-    # TODO
     def list_all(self):
         self.dp.list_all()
 
@@ -264,6 +263,9 @@ class DPManager(object):
         for template in res['template_list']:
             tmp_list.append(template['template_name'])
         return tmp_list
+
+    def rename_template(self, old_name, new_name):
+        self.dp.rename_template(old_name, new_name)
 
     def rmdir(self, path):
         """Delete a directory on the DPT-RP1.
@@ -594,6 +596,7 @@ def main():
     # dp_mgr.print_folder_contents('/Document/Reader/topics/quantum_simulation')
 
     print(dp_mgr.list_templates())
+    dp_mgr.rename_template('daily_planner', 'planner')
 
 
     downloader = Downloader(dp_mgr)
