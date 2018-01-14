@@ -256,6 +256,15 @@ class DPManager(object):
     def list_all(self):
         self.dp.list_all()
 
+    def list_templates(self):
+        res = self.dp.list_templates()
+        from pprint import pprint
+        pprint(res)
+        tmp_list = []
+        for template in res['template_list']:
+            tmp_list.append(template['template_name'])
+        return tmp_list
+
     def rmdir(self, path):
         """Delete a directory on the DPT-RP1.
 
@@ -580,9 +589,11 @@ def main():
     dp_mgr.get_storage()
     dp_mgr.get_battery()
 
-    dp_mgr.print_full_tree()
-    dp_mgr.print_dir_tree()
-    dp_mgr.print_folder_contents('/Document/Reader/topics/quantum_simulation')
+    # dp_mgr.print_full_tree()
+    # dp_mgr.print_dir_tree()
+    # dp_mgr.print_folder_contents('/Document/Reader/topics/quantum_simulation')
+
+    print(dp_mgr.list_templates())
 
 
     downloader = Downloader(dp_mgr)
@@ -590,7 +601,7 @@ def main():
     # downloader.download_standalone_notes('/home/cgross/Downloads', policy='remote_wins')
 
     # dp_mgr.del_folder('/Document/testfolder')
-    dp_mgr.mkdir('/Document/testfolder')
+    # dp_mgr.mkdir('/Document/testfolder')
 
     uploader = Uploader(dp_mgr)
     # uploader.upload_folder_contents('/home/cgross/Reader/projects/physikjournal', '/Document/Reader/projects/physikjournal', policy='remote_wins')
