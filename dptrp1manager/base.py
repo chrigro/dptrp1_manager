@@ -130,6 +130,13 @@ class DPManager(object):
                 parent = self.get_node(parent_fullname)
                 filenode.parent = parent
 
+    def rebuild_tree(self):
+        """Rebuild the local tree.
+
+        """
+        self._content_tree = None
+        self._build_tree()
+
     def print_full_tree(self):
         for pre, _, node in anytree.render.RenderTree(self._content_tree):
             print("%s%s" % (pre, node.name))
@@ -197,21 +204,54 @@ class DPManager(object):
             else:
                 print('ERROR: DPT-RP1 has already a folder {}'.format(path))
 
-    def rmdir(self, path):
-        """Delete a directory on the DPT-RP1.
+    def rm_dir(self, path):
+        """Delete a (empty) directory on the DPT-RP1.
 
         """
         if path.endswith('/'):
             path = path[:-1]
         if (self.node_name_ok(path) and self.node_exists(path)):
+            print('Deleting {} remotely.'.format(path))
             self.dp.delete_directory(path[1:])
 
-    def rmfile(self, path):
+    def rm_file(self, path):
         """Delete a file on the DPT-RP1.
 
         """
         if (self.node_name_ok(path) and self.node_exists(path)):
+            print('Deleting {} remotely.'.format(path))
             self.dp.delete_document(path[1:])
+
+    def rm_allfiles(self, path):
+        """Delete all files in a directory on the DPT-RP1, but do not recurse
+        into subdirectories.
+
+        """
+        if (self.node_name_ok(path) and self.node_exists(path)):
+            files = self.get_folder_contents(path)
+            for f in files:
+                if f.isfile:
+                    pathlist = f.metadata['entry_path']
+                    remote_path = '/' + '/'.join(pathlist[:])
+                    self.rm_file(remote_path)
+
+    def rm_allfiles_recursively(self, path):
+        """Delete all files and folders in a directory on the DPT-RP1. Do not
+        delete the directory itself.
+
+        """
+        if (self.node_name_ok(path) and self.node_exists(path)):
+            files = self.get_folder_contents(path)
+            for f in files:
+                if f.isfile:
+                    pathlist = f.metadata['entry_path']
+                    remote_path = '/' + '/'.join(pathlist[:])
+                    self.rm_file(remote_path)
+                else:
+                    pathlist = f.metadata['entry_path']
+                    new_path = '/' + '/'.join(pathlist[:])
+                    self.rm_dir_recursively(new_path)
+                    self.rm_dir(new_path)
 
 
 class DPDataParser(object):
@@ -298,7 +338,7 @@ class DPDataParser(object):
         return dt
 
     def _splitpath(self, string):
-        path = os.path.normpath(string)
+        path = osp.normpath(string)
         return path.split(os.sep)
 
     def _splitauthors(self, string):
@@ -499,7 +539,7 @@ class Uploader(FileTransferHandler):
                 else:
                     if policy == 'local_wins':
                         # delete the old file
-                        self.dp.rmfile(dest)
+                        self.dp.rm_file(dest)
                         do_transfer = True
                     elif policy == 'remote_wins':
                         do_transfer = False
@@ -507,7 +547,7 @@ class Uploader(FileTransferHandler):
                     elif policy == 'newer':
                         if self._check_datetime(source, dest) == 'local_newer':
                             # delete the old file
-                            self.dp.rmfile(dest)
+                            self.dp.rm_file(dest)
                             do_transfer = True
                         else:
                             do_transfer = False
@@ -522,8 +562,8 @@ class Uploader(FileTransferHandler):
 
         """
         if self._local_path_ok(source):
-            src_files = (os.path.join(source, fn) for fn in os.listdir(source)
-                    if os.path.isfile(os.path.join(source, fn)))
+            src_files = (osp.join(source, fn) for fn in os.listdir(source)
+                    if osp.isfile(osp.join(source, fn)))
             if self._dp_mgr.node_name_ok(dest) and self._dp_mgr.node_exists(dest):
                 for f in src_files:
                     dest_fn = dest + '/' + osp.basename(f)
@@ -533,8 +573,24 @@ class Uploader(FileTransferHandler):
         """Upload recursively.
 
         """
-        pass
-        # TODO
+        if self._local_path_ok(source):
+            if self._dp_mgr.node_name_ok(dest) and self._dp_mgr.node_exists(dest):
+                src_files = (osp.join(source, fn) for fn in os.listdir(source)
+                        if osp.isfile(osp.join(source, fn)))
+                for f in src_files:
+                    dest_fn = dest + '/' + osp.basename(f)
+                    self.upload_file(f, dest_fn, policy)
+                src_dirs = (osp.join(source, fn) for fn in os.listdir(source)
+                        if osp.isdir(osp.join(source, fn)))
+                for d in src_dirs:
+                    new_remote_path = dest + '/' + osp.basename(d)
+                    print(new_remote_path)
+                    new_local_path = d
+                    print(new_local_path)
+                    if not self._dp_mgr.node_exists(new_remote_path, print_error=False):
+                        self._dp_mgr.mkdir(new_remote_path)
+                        self._dp_mgr.rebuild_tree()
+                    self.upload_recursively(new_local_path, new_remote_path, policy)
 
 class DPConfig(object):
     """Represent the configuration of the DPT-RP1.
@@ -739,7 +795,10 @@ def main():
     # dp_mgr.delete_template('test')
     # dp_mgr.add_template('testA5', '/home/cgross/Downloads/test2.pdf')
 
-    downloader.download_recursively('/Document/Reader/projects', '/home/cgross/Downloads/test', 'remote_wins')
+    # downloader.download_recursively('/Document/Reader/projects', '/home/cgross/Downloads/test', 'remote_wins')
+    # dp_mgr.rm_all_files_recursively('/Document/Reader/projects')
+    # dp_mgr.mkdir('/Document/Reader/projects')
+    uploader.upload_recursively('/home/cgross/Downloads/test', '/Document/Reader/projects', 'remote_wins')
 
     # downloader.download_folder_contents('/Document/Reader/topics/quantum_simulation', '/home/cgross/Downloads')
     # downloader.download_standalone_notes('/home/cgross/Downloads', policy='remote_wins')
