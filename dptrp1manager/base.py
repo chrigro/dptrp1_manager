@@ -197,99 +197,21 @@ class DPManager(object):
             else:
                 print('ERROR: DPT-RP1 has already a folder {}'.format(path))
 
-    def get_config(self):
-        timeout = self.dp.get_timeout()
-        date_format = self.dp.get_date_format()
-        time_format = self.dp.get_time_format()
-        timezone = self.dp.get_timezone()
-        owner = self.dp.get_owner()
-        print('---Config---')
-        print('owner: {}'.format(owner))
-        print('timeout: {}'.format(timeout))
-        print('date_format: {}'.format(date_format))
-        print('time_format: {}'.format(time_format))
-        print('timezone: {}'.format(timezone))
-
-    def set_timeout(self, value):
-        self.dp.set_timeout(value)
-
-    def set_owner(self, value):
-        self.dp.set_owner(value)
-
-    def set_date_format(self, value):
-        self.dp.set_date_format(value)
-
-    def set_time_format(self, value):
-        self.dp.set_time_format(value)
-
-    def set_timezone(self, value):
-        self.dp.set_timezone(value)
-
-    def get_storage(self):
-        storage = self.dp.get_storage()
-        free = float(storage['available'])
-        total = float(storage['capacity'])
-        print('---Storage---')
-        print('{:2.3f} GB of {:2.3f} GB available ({:2.0f}%)'
-                .format(free/1e9, total/1e9, free/total*100))
-
-    def get_battery(self):
-        battery = self.dp.get_battery()
-        print('---Battery---')
-        print('health: {}'.format(battery['health']))
-        print('level: {}%'.format(battery['level']))
-        print('status: {}'.format(battery['status']))
-        print('plugged: {}'.format(battery['plugged']))
-        print('pen: {}%'.format(battery['pen']))
-
-    def get_system_info(self):
-        fw_version = self.dp.get_firmware_version()
-        mac_address = self.dp.get_mac_address()
-        info = self.dp.get_info()
-        print('---System---')
-        print('model_name: {}'.format(info['model_name']))
-        print('serial_number: {}'.format(info['serial_number']))
-        print('fw_version: {}'.format(fw_version))
-        print('mac_address: {}'.format(mac_address))
-
-    def list_all(self):
-        self.dp.list_all()
-
-    def list_templates(self):
-        res = self.dp.list_templates()
-        tmp_list = []
-        for template in res['template_list']:
-            tmp_list.append(template['template_name'])
-        print('---Templates---')
-        for tmp in tmp_list:
-            print(tmp)
-
-    def rename_template(self, old_name, new_name):
-        self.dp.rename_template(old_name, new_name)
-
-    def delete_template(self, name):
-        self.dp.delete_template(name)
-
-    def add_template(self, name, path):
-        if osp.exists(path):
-            with open(path, 'rb') as f:
-                self.dp.add_template(name, f)
-        else:
-            print('Adding template filed. File not found.')
-
     def rmdir(self, path):
         """Delete a directory on the DPT-RP1.
 
         """
-        # TODO: Not yet possible with dpt-rp1-py
-        pass
+        if path.endswith('/'):
+            path = path[:-1]
+        if (self.node_name_ok(path) and self.node_exists(path)):
+            self.dp.delete_directory(path[1:])
 
     def rmfile(self, path):
         """Delete a file on the DPT-RP1.
 
         """
-        # TODO: Not yet possible with dpt-rp1-py
-        pass
+        if (self.node_name_ok(path) and self.node_exists(path)):
+            self.dp.delete_document(path[1:])
 
 
 class DPDataParser(object):
@@ -506,9 +428,10 @@ class Downloader(FileTransferHandler):
             src_files = self._dp_mgr.get_folder_contents(source)
             if self._local_path_ok(dest):
                 for f in src_files:
-                    src_fp = osp.join(source, f.name)
-                    print('Downloading {}'.format(src_fp))
-                    self.download_file(src_fp, osp.join(dest, f.name), policy)
+                    if f.isfile:
+                        src_fp = osp.join(source, f.name)
+                        print('Downloading {}'.format(src_fp))
+                        self.download_file(src_fp, osp.join(dest, f.name), policy)
 
     def download_standalone_notes(self, dest, policy):
         """Download all notes.
@@ -517,8 +440,16 @@ class Downloader(FileTransferHandler):
         src_files = self._dp_mgr.get_standalone_notes()
         if self._local_path_ok(dest):
             for f in src_files:
-                src_fp = osp.join('/Document/Note', f.name)
-                self.download_file(src_fp, osp.join(dest, f.name), policy)
+                if f.isfile:
+                    src_fp = osp.join('/Document/Note', f.name)
+                    self.download_file(src_fp, osp.join(dest, f.name), policy)
+
+    def download_recursively(self, source, dest, policy):
+        """Download recursively.
+
+        """
+        pass
+        # TODO
 
 
 class Uploader(FileTransferHandler):
@@ -542,8 +473,7 @@ class Uploader(FileTransferHandler):
 
         """
         if (self._dp_mgr.node_name_ok(dest) and
-                # FIXME: Can't check for folder existance as long as there is no way to get folders from the dpt-rp1. the current method is blind to empty folders.
-                # self._dp_mgr.node_exists(dest.rsplit('/', maxsplit=1)[0]) and
+                self._dp_mgr.node_exists(dest.rsplit('/', maxsplit=1)[0]) and
                 self._local_path_ok(source) and
                 self._dp_mgr.file_name_ok(dest)):
             do_transfer = True
@@ -553,14 +483,16 @@ class Uploader(FileTransferHandler):
                     print('Skipping upload of {}. Already present and equal.'.format(source))
                 else:
                     if policy == 'local_wins':
-                        # FIXME: Overriding  of remote files fails in dpt-rp1-py
+                        # delete the old file
+                        self.dp.rmfile(dest)
                         do_transfer = True
                     elif policy == 'remote_wins':
                         do_transfer = False
                         print('Skipping upload of {}. Already present and remote_wins.'.format(source))
                     elif policy == 'newer':
                         if self._check_datetime(source, dest) == 'local_newer':
-                            # FIXME: Overriding  of remote files fails in dpt-rp1-py
+                            # delete the old file
+                            self.dp.rmfile(dest)
                             do_transfer = True
                         else:
                             do_transfer = False
@@ -577,48 +509,227 @@ class Uploader(FileTransferHandler):
         if self._local_path_ok(source):
             src_files = (os.path.join(source, fn) for fn in os.listdir(source)
                     if os.path.isfile(os.path.join(source, fn)))
-            # FIXME: Can't check for folder existance as long as there is no way to get folders from the dpt-rp1. the current method is blind to empty folders.
-            # if self._dp_mgr.node_name_ok(dest) and self._dp_mgr.node_exists(dest):
-            if self._dp_mgr.node_name_ok(dest):
+            if self._dp_mgr.node_name_ok(dest) and self._dp_mgr.node_exists(dest):
                 for f in src_files:
                     dest_fn = dest + '/' + osp.basename(f)
                     self.upload_file(f, dest_fn, policy)
 
+    def upload_recursively(self, source, dest, policy):
+        """Upload recursively.
+
+        """
+        pass
+        # TODO
 
 class DPConfig(object):
     """Represent the configuration of the DPT-RP1.
 
+    Parameters
+    ----------
+    dp_mgr : DPManager
+
     """
-    def __init__(self):
+    def __init__(self, dp_mgr):
         super(DPConfig, self).__init__()
-        # TODO Implement this class
+        self._dp_mgr = dp_mgr
+
+    @property
+    def templates(self):
+        """List of templates.
+
+        """
+        res = self._dp_mgr.dp.list_templates()
+        tmp_list = []
+        for template in res['template_list']:
+            tmp_list.append(template['template_name'])
+        return tmp_list
+
+    def rename_template(self, old_name, new_name):
+        self._dp_mgr.dp.rename_template(old_name, new_name)
+
+    def delete_template(self, name):
+        self._dp_mgr.dp.delete_template(name)
+
+    def add_template(self, name, path):
+        if osp.exists(path):
+            with open(path, 'rb') as f:
+                self._dp_mgr.dp.add_template(name, f)
+        else:
+            print('Adding template failed. File not found.')
+
+    @property
+    def timeout(self):
+        """Timeout to lock in minutes
+
+        """
+        timeout = self._dp_mgr.dp.get_timeout()
+        return timeout
+
+    @timeout.setter
+    def timeout(self, val):
+        self.dp._dp_mgr.set_timeout(value)
+
+    @property
+    def owner():
+        """Owner of the device (for pdf comments)
+
+        """
+        owner = self._dp_mgr.dp.get_owner()
+        return owner
+
+    @owner.setter
+    def owner(self, val):
+        self._dp_mgr.dp.set_owner(value)
+
+    @property
+    def time_format(self):
+        """The time format.
+
+        """
+        time_format = self._dp_mgr.dp.get_time_format()
+        return time_format
+
+    @time_format.setter
+    def time_format(self, val):
+        self._dp_mgr.dp.set_time_format(value)
+
+    @property
+    def date_format(self):
+        """The date format
+
+        """
+        date_format = self._dp_mgr.dp.get_date_format()
+        return date_format
+
+    @date_format.setter
+    def date_format(self, val):
+        self._dp_mgr.dp.set_date_format(value)
+
+    @property
+    def timezone(self):
+        """The timezone
+
+        """
+        timezone = self._dp_mgr.dp.get_timezone()
+        return timezone
+
+    @timezone.setter
+    def timezone(self, val):
+        self._dp_mgr.dp.set_timezone(value)
+
+    @property
+    def storage_free(self):
+        """Free space on device in Byte
+
+        """
+        storage = self._dp_mgr.dp.get_storage()
+        free = float(storage['available'])
+        return free
+
+    @property
+    def storage_total(self):
+        """Total storage capacity in Byte
+
+        """
+        storage = self._dp_mgr.dp.get_storage()
+        total = float(storage['capacity'])
+        return total
+
+    @property
+    def battery_level(self):
+        """Battery level in percent.
+
+        """
+        battery = self._dp_mgr.dp.get_battery()
+        return battery['level']
+
+    @property
+    def battery_pen(self):
+        """Pen battery level in percent.
+
+        """
+        battery = self._dp_mgr.dp.get_battery()
+        return battery['pen']
+
+    @property
+    def battery_health(self):
+        """Battery health
+
+        """
+        battery = self._dp_mgr.dp.get_battery()
+        return battery['health']
+
+    @property
+    def battery_status(self):
+        """Battery status (charging/discharging)
+
+        """
+        battery = self._dp_mgr.dp.get_battery()
+        return battery['status']
+
+    @property
+    def plugged(self):
+        """Check if connected via usb for charging.
+
+        """
+        battery = self._dp_mgr.dp.get_battery()
+        return battery['plugged']
+
+    @property
+    def model(self):
+        """The model name
+
+        """
+        info = self._dp_mgr.dp.get_info()
+        return info['model_name']
+
+    @property
+    def serial(self):
+        """The seral number of the device
+
+        """
+        info = self._dp_mgr.dp.get_info()
+        return info['serial_number']
+
+    @property
+    def firmware_version(self):
+        """Get the firmware version
+
+        """
+        fw_version = self._dp_mgr.dp.get_firmware_version()
+        return fw_version
+
+    @property
+    def mac_address(self):
+        """The mac address
+
+        """
+        mac_address = self._dp_mgr.dp.get_mac_address()
+        return mac_address
 
 
 def main():
     dp_mgr = DPManager('digitalpaper.local')
-    dp_mgr.get_system_info()
-    dp_mgr.get_config()
-    dp_mgr.get_storage()
-    dp_mgr.get_battery()
+    config = DPConfig(dp_mgr)
+    downloader = Downloader(dp_mgr)
+    uploader = Uploader(dp_mgr)
+
+    print(config.timeout)
 
     # dp_mgr.print_full_tree()
-    # dp_mgr.print_dir_tree()
+    dp_mgr.print_dir_tree()
     # dp_mgr.print_folder_contents('/Document/Reader/topics/quantum_simulation')
 
-    dp_mgr.list_templates()
     # dp_mgr.rename_template('daily_planner', 'planner')
     # dp_mgr.delete_template('test')
-    # dp_mgr.add_template('test', '/home/cgross/Downloads/test.pdf')
+    # dp_mgr.add_template('testA5', '/home/cgross/Downloads/test2.pdf')
 
 
-    downloader = Downloader(dp_mgr)
     # downloader.download_folder_contents('/Document/Reader/topics/quantum_simulation', '/home/cgross/Downloads')
     # downloader.download_standalone_notes('/home/cgross/Downloads', policy='remote_wins')
 
-    # dp_mgr.del_folder('/Document/testfolder')
     # dp_mgr.mkdir('/Document/testfolder')
 
-    uploader = Uploader(dp_mgr)
     # uploader.upload_folder_contents('/home/cgross/Reader/projects/physikjournal', '/Document/Reader/projects/physikjournal', policy='remote_wins')
     # uploader.upload_folder_contents('/home/cgross/Downloads/test', '/Document/Reader/test', policy='remote_wins')
 
