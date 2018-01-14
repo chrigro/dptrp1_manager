@@ -600,6 +600,33 @@ class Uploader(FileTransferHandler):
                         self._dp_mgr.rebuild_tree()
                     self.upload_recursively(new_local_path, new_remote_path, policy)
 
+
+class Synchronizer(FileTransferHandler):
+    """Syncronize the DPT-RP1 with a folder.
+
+    """
+    def __init__(self, dp_mgr):
+        super(Synchronizer, self).__init__(dp_mgr)
+        self._downloader = Downloader(dp_mgr)
+        self._uploader = Uploader(dp_mgr)
+
+    def sync_folder(self, local, remote, policy):
+        """Synchronize a local and remote folder.
+
+        Parameters
+        ----------
+        local : string
+            Full path to the source
+        remote : string
+            Full path to the folder on the DPT-RP1
+        policy : 'remote_wins', 'local_wins', 'newer'
+            Decide what to do if the file is already present.
+
+        """
+        self._downloader.download_recursively(remote, local, policy)
+        self._uploader.upload_recursively(local, remote, policy)
+
+
 class DPConfig(object):
     """Represent the configuration of the DPT-RP1.
 
@@ -850,7 +877,7 @@ class DPConfig(object):
         val = self._dp_mgr.dp.wifi_enabled()['value']
         if val == 'on':
             return True
-        else: 
+        else:
             return False
 
     def enable_wifi(self):
