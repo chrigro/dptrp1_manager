@@ -211,7 +211,7 @@ class DPManager(object):
         if path.endswith('/'):
             path = path[:-1]
         if (self.node_name_ok(path) and self.node_exists(path)):
-            print('Deleting {} remotely.'.format(path))
+            print('Deleting dir {}.'.format(path))
             self.dp.delete_directory(path[1:])
 
     def rm_file(self, path):
@@ -219,7 +219,7 @@ class DPManager(object):
 
         """
         if (self.node_name_ok(path) and self.node_exists(path)):
-            print('Deleting {} remotely.'.format(path))
+            print('Deleting file {}.'.format(path))
             self.dp.delete_document(path[1:])
 
     def rm_allfiles(self, path):
@@ -250,7 +250,7 @@ class DPManager(object):
                 else:
                     pathlist = f.metadata['entry_path']
                     new_path = '/' + '/'.join(pathlist[:])
-                    self.rm_dir_recursively(new_path)
+                    self.rm_allfiles_recursively(new_path)
                     self.rm_dir(new_path)
 
 
@@ -456,7 +456,7 @@ class Downloader(FileTransferHandler):
                             do_transfer = False
                             print('Skipping download of {}. Already present and local file newer.'.format(source))
             if do_transfer:
-                print('Downloading {} to {}'.format(source, dest))
+                print('Downloading {}'.format(source))
                 data = self._dp_mgr.dp.download(source[1:])
                 with open(dest, 'wb') as f:
                     f.write(data)
@@ -471,7 +471,6 @@ class Downloader(FileTransferHandler):
                 for f in src_files:
                     if f.isfile:
                         src_fp = osp.join(source, f.name)
-                        print('Downloading {}'.format(src_fp))
                         self.download_file(src_fp, osp.join(dest, f.name), policy)
 
     def download_standalone_notes(self, dest, policy):
@@ -553,7 +552,7 @@ class Uploader(FileTransferHandler):
                             do_transfer = False
                             print('Skipping upload of {}. Already present and remote file newer.'.format(source))
             if do_transfer:
-                print('Uploading {} to {}'.format(source, dest))
+                print('Adding file {}'.format(dest))
                 with open(source, 'rb') as f:
                     self._dp_mgr.dp.upload(f, dest[1:])
 
@@ -584,9 +583,7 @@ class Uploader(FileTransferHandler):
                         if osp.isdir(osp.join(source, fn)))
                 for d in src_dirs:
                     new_remote_path = dest + '/' + osp.basename(d)
-                    print(new_remote_path)
                     new_local_path = d
-                    print(new_local_path)
                     if not self._dp_mgr.node_exists(new_remote_path, print_error=False):
                         self._dp_mgr.mkdir(new_remote_path)
                         self._dp_mgr.rebuild_tree()
@@ -796,9 +793,8 @@ def main():
     # dp_mgr.add_template('testA5', '/home/cgross/Downloads/test2.pdf')
 
     # downloader.download_recursively('/Document/Reader/projects', '/home/cgross/Downloads/test', 'remote_wins')
-    # dp_mgr.rm_all_files_recursively('/Document/Reader/projects')
-    # dp_mgr.mkdir('/Document/Reader/projects')
-    uploader.upload_recursively('/home/cgross/Downloads/test', '/Document/Reader/projects', 'remote_wins')
+    # dp_mgr.rm_allfiles_recursively('/Document/Reader/projects')
+    # uploader.upload_recursively('/home/cgross/Downloads/test', '/Document/Reader/projects', 'remote_wins')
 
     # downloader.download_folder_contents('/Document/Reader/topics/quantum_simulation', '/home/cgross/Downloads')
     # downloader.download_standalone_notes('/home/cgross/Downloads', policy='remote_wins')
