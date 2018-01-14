@@ -257,15 +257,25 @@ class DPManager(object):
 
     def list_templates(self):
         res = self.dp.list_templates()
-        from pprint import pprint
-        pprint(res)
         tmp_list = []
         for template in res['template_list']:
             tmp_list.append(template['template_name'])
-        return tmp_list
+        print('---Templates---')
+        for tmp in tmp_list:
+            print(tmp)
 
     def rename_template(self, old_name, new_name):
         self.dp.rename_template(old_name, new_name)
+
+    def delete_template(self, name):
+        self.dp.delete_template(name)
+
+    def add_template(self, name, path):
+        if osp.exists(path):
+            with open(path, 'rb') as f:
+                self.dp.add_template(name, f)
+        else:
+            print('Adding template filed. File not found.')
 
     def rmdir(self, path):
         """Delete a directory on the DPT-RP1.
@@ -595,8 +605,10 @@ def main():
     # dp_mgr.print_dir_tree()
     # dp_mgr.print_folder_contents('/Document/Reader/topics/quantum_simulation')
 
-    print(dp_mgr.list_templates())
-    dp_mgr.rename_template('daily_planner', 'planner')
+    dp_mgr.list_templates()
+    # dp_mgr.rename_template('daily_planner', 'planner')
+    # dp_mgr.delete_template('test')
+    # dp_mgr.add_template('test', '/home/cgross/Downloads/test.pdf')
 
 
     downloader = Downloader(dp_mgr)
