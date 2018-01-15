@@ -22,6 +22,7 @@ import sys
 import os
 import os.path as osp
 import datetime
+import configparser
 
 import anytree
 from dptrp1.dptrp1 import DigitalPaper
@@ -425,6 +426,14 @@ class FileTransferHandler(object):
         else:
             return True
 
+    def _check_policy(self, policy):
+        policies = ('remote_wins', 'local_wins', 'newer')
+        if not policy in policies:
+            print('ERROR: Policy must be one of {}'.format(policies))
+            return False
+        else:
+            return True
+
 
 class Downloader(FileTransferHandler):
     """Manage downloading of files.
@@ -446,7 +455,8 @@ class Downloader(FileTransferHandler):
             Decide what to do if the file is already present.
 
         """
-        if (self._dp_mgr.node_name_ok(source) and
+        if (self._check_policy(policy) and
+                self._dp_mgr.node_name_ok(source) and
                 self._dp_mgr.node_exists(source) and
                 self._local_path_ok(osp.dirname(dest))):
             do_transfer = True
@@ -476,7 +486,9 @@ class Downloader(FileTransferHandler):
         """Download a full folder from the DPT-RP1.
 
         """
-        if self._dp_mgr.node_name_ok(source) and self._dp_mgr.node_exists(source):
+        if (self._check_policy(policy) and
+                self._dp_mgr.node_name_ok(source) and 
+                self._dp_mgr.node_exists(source)):
             src_files = self._dp_mgr.get_folder_contents(source)
             if self._local_path_ok(dest):
                 for f in src_files:
@@ -501,7 +513,9 @@ class Downloader(FileTransferHandler):
         """
         if not self._local_path_ok(dest):
             return None
-        if self._dp_mgr.node_name_ok(source) and self._dp_mgr.node_exists(source):
+        if (self._check_policy(policy) and
+                self._dp_mgr.node_name_ok(source) and 
+                self._dp_mgr.node_exists(source)):
             src_nodes = self._dp_mgr.get_folder_contents(source)
             for f in src_nodes:
                 if f.isfile:
@@ -537,7 +551,8 @@ class Uploader(FileTransferHandler):
             Decide what to do if the file is already present.
 
         """
-        if (self._dp_mgr.node_name_ok(dest) and
+        if (self._check_policy(policy) and
+                self._dp_mgr.node_name_ok(dest) and
                 self._dp_mgr.node_exists(dest.rsplit('/', maxsplit=1)[0]) and
                 self._local_path_ok(source) and
                 self._dp_mgr.file_name_ok(dest)):
@@ -571,7 +586,8 @@ class Uploader(FileTransferHandler):
         """Upload a full folder to the DPT-RP1.
 
         """
-        if self._local_path_ok(source):
+        if (self._check_policy(policy) and
+                self._local_path_ok(source)):
             src_files = (osp.join(source, fn) for fn in os.listdir(source)
                     if osp.isfile(osp.join(source, fn)))
             if self._dp_mgr.node_name_ok(dest) and self._dp_mgr.node_exists(dest):
@@ -583,7 +599,8 @@ class Uploader(FileTransferHandler):
         """Upload recursively.
 
         """
-        if self._local_path_ok(source):
+        if (self._check_policy(policy) and
+                self._local_path_ok(source)):
             if self._dp_mgr.node_name_ok(dest) and self._dp_mgr.node_exists(dest):
                 src_files = (osp.join(source, fn) for fn in os.listdir(source)
                         if osp.isfile(osp.join(source, fn)))
@@ -609,6 +626,22 @@ class Synchronizer(FileTransferHandler):
         super(Synchronizer, self).__init__(dp_mgr)
         self._downloader = Downloader(dp_mgr)
         self._uploader = Uploader(dp_mgr)
+        self._config = configparser.ConfigParser()
+        self._checkconfigfile()
+
+    def _checkconfigfile(self):
+        """Check the config file.
+
+        """
+        if osp.exists(osp.join(CONFIGDIR, 'sync.conf')):
+            self._config.read(osp.join(CONFIGDIR, 'sync.conf'))
+        if self._config.sections() == []:
+            self._config['pair1'] = {}
+            self._config['pair1']['local_path'] = '<replace by absolute local path>'
+            self._config['pair1']['remote_path'] = '<replace by remote path>'
+            self._config['pair1']['policy'] = '<one of: remote_wins, local_wins, newer>'
+        with open(osp.join(CONFIGDIR, 'sync.conf'), 'w') as f:
+            self._config.write(f)
 
     def sync_folder(self, local, remote, policy):
         """Synchronize a local and remote folder.
@@ -625,6 +658,17 @@ class Synchronizer(FileTransferHandler):
         """
         self._downloader.download_recursively(remote, local, policy)
         self._uploader.upload_recursively(local, remote, policy)
+
+    def sync_pairs(self):
+        """Sync the pairs defined in the config file.
+
+        """
+        for pair in self._config.sections():
+            print('---Staring to sync pair {}---'.format(pair))
+            lp = self._config[pair]['local_path']
+            rp = self._config[pair]['remote_path']
+            pol = self._config[pair]['policy']
+            self.sync_folder(lp, rp, pol)
 
 
 class DPConfig(object):
@@ -892,13 +936,17 @@ def main():
     config = DPConfig(dp_mgr)
     downloader = Downloader(dp_mgr)
     uploader = Uploader(dp_mgr)
+    synchronizer = Synchronizer(dp_mgr)
 
+    synchronizer.sync_pairs()
 
     # print(config.wifi_enabled)
 
     # dp_mgr.print_full_tree()
-    dp_mgr.print_dir_tree()
+    # dp_mgr.print_dir_tree()
     # dp_mgr.print_folder_contents('/Document/Reader/topics')
+
+    # synchronizer.sync_folder(local='/home/cgross/Reader/projects', remote='/Document/Reader/projects', policy='remote_wins')
 
     # dp_mgr.rename_template('daily_planner', 'planner')
     # dp_mgr.delete_template('test')
