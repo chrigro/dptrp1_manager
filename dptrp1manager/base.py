@@ -29,7 +29,7 @@ from dptrp1.dptrp1 import DigitalPaper
 
 from pprint import pprint
 
-CONFIGDIR = osp.join(osp.expanduser('~'), '.dptrp1')
+CONFIGDIR = osp.join(osp.expanduser('~'), '.dpmgr')
 
 class DPManager(object):
     """Main class to manage the DPT-RP1.
@@ -427,7 +427,7 @@ class FileTransferHandler(object):
             return True
 
     def _check_policy(self, policy):
-        policies = ('remote_wins', 'local_wins', 'newer')
+        policies = ('remote_wins', 'local_wins', 'newer', 'skip')
         if not policy in policies:
             print('ERROR: Policy must be one of {}'.format(policies))
             return False
@@ -442,7 +442,7 @@ class Downloader(FileTransferHandler):
     def __init__(self, dp_mgr):
         super(Downloader, self).__init__(dp_mgr)
 
-    def download_file(self, source, dest, policy):
+    def download_file(self, source, dest, policy='skip'):
         """Download a file from the DPT-RP1.
 
         Parameter
@@ -451,7 +451,7 @@ class Downloader(FileTransferHandler):
             Full path to the file on the DPT-RP1
         dest : string
             Full path to the destination including the file name
-        policy : 'remote_wins', 'local_wins', 'newer'
+        policy : 'remote_wins', 'local_wins', 'newer', 'skip'
             Decide what to do if the file is already present.
 
         """
@@ -476,13 +476,16 @@ class Downloader(FileTransferHandler):
                         else:
                             do_transfer = False
                             print('Skipping download of {}. Already present and local file newer.'.format(source))
+                    elif policy == 'skip':
+                        do_transfer = False
+                        print('Skipping download of {}. Already present and skip.'.format(source))
             if do_transfer:
                 print('Downloading {}'.format(source))
                 data = self._dp_mgr.dp.download(source[1:])
                 with open(dest, 'wb') as f:
                     f.write(data)
 
-    def download_folder_contents(self, source, dest, policy):
+    def download_folder_contents(self, source, dest, policy='skip'):
         """Download a full folder from the DPT-RP1.
 
         """
@@ -496,7 +499,7 @@ class Downloader(FileTransferHandler):
                         src_fp = osp.join(source, f.name)
                         self.download_file(src_fp, osp.join(dest, f.name), policy)
 
-    def download_standalone_notes(self, dest, policy):
+    def download_standalone_notes(self, dest, policy='skip'):
         """Download all notes.
 
         """
@@ -507,7 +510,7 @@ class Downloader(FileTransferHandler):
                     src_fp = osp.join('/Document/Note', f.name)
                     self.download_file(src_fp, osp.join(dest, f.name), policy)
 
-    def download_recursively(self, source, dest, policy):
+    def download_recursively(self, source, dest, policy='skip'):
         """Download recursively.
 
         """
@@ -538,7 +541,7 @@ class Uploader(FileTransferHandler):
     def __init__(self, dp_mgr):
         super(Uploader, self).__init__(dp_mgr)
 
-    def upload_file(self, source, dest, policy):
+    def upload_file(self, source, dest, policy='skip'):
         """Upload a file to the DPT-RP1.
 
         Parameter
@@ -547,7 +550,7 @@ class Uploader(FileTransferHandler):
             Full path to the source
         dest : string
             Full path to the file on the DPT-RP1 (incl. file name)
-        policy : 'remote_wins', 'local_wins', 'newer'
+        policy : 'remote_wins', 'local_wins', 'newer', 'skip'
             Decide what to do if the file is already present.
 
         """
@@ -577,12 +580,15 @@ class Uploader(FileTransferHandler):
                         else:
                             do_transfer = False
                             print('Skipping upload of {}. Already present and remote file newer.'.format(source))
+                    elif policy == 'skip':
+                        do_transfer = False
+                        print('Skipping upload of {}. Already present and skip.'.format(source))
             if do_transfer:
                 print('Adding file {}'.format(dest))
                 with open(source, 'rb') as f:
                     self._dp_mgr.dp.upload(f, dest[1:])
 
-    def upload_folder_contents(self, source, dest, policy):
+    def upload_folder_contents(self, source, dest, policy='skip'):
         """Upload a full folder to the DPT-RP1.
 
         """
@@ -595,7 +601,7 @@ class Uploader(FileTransferHandler):
                     dest_fn = dest + '/' + osp.basename(f)
                     self.upload_file(f, dest_fn, policy)
 
-    def upload_recursively(self, source, dest, policy):
+    def upload_recursively(self, source, dest, policy='skip'):
         """Upload recursively.
 
         """
@@ -639,12 +645,12 @@ class Synchronizer(FileTransferHandler):
             self._config['pair1'] = {}
             self._config['pair1']['local_path'] = '<replace by absolute local path>'
             self._config['pair1']['remote_path'] = '<replace by remote path>'
-            self._config['pair1']['policy'] = '<one of: remote_wins, local_wins, newer>'
+            self._config['pair1']['policy'] = '<one of: remote_wins, local_wins, newer, skip>'
         with open(osp.join(CONFIGDIR, 'sync.conf'), 'w') as f:
             self._config.write(f)
 
-    def sync_folder(self, local, remote, policy):
-        """Synchronize a local and remote folder.
+    def sync_folder(self, local, remote, policy='skip'):
+        """Synchronize a local and remote folder recursively.
 
         Parameters
         ----------
@@ -652,7 +658,7 @@ class Synchronizer(FileTransferHandler):
             Full path to the source
         remote : string
             Full path to the folder on the DPT-RP1
-        policy : 'remote_wins', 'local_wins', 'newer'
+        policy : 'remote_wins', 'local_wins', 'newer', 'skip'
             Decide what to do if the file is already present.
 
         """

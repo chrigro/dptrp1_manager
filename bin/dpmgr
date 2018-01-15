@@ -21,9 +21,10 @@ class DPTRP1(object):
             usage='''dpmgr <command> [<args>]
 
 The dpmgr commands are:
-   upload      Upload files to the digital paper device
-   download    Download files from the digital paper device
-   sync        Synchronize files with the digital paper device
+   upload      Upload files or directory contents to the digital paper device
+   download    Download files or directory contents from the digital paper device
+   sync        Synchronize files or directory contents with the digital paper device
+   syncpairs   Synchronize pairs defined in the config file ~/.dpmgr/sync.conf
    config      Manage the configuration of the device
    status      Check the device status
 ''')
@@ -40,30 +41,78 @@ The dpmgr commands are:
 
     def upload(self):
         parser = argparse.ArgumentParser(
-            description='Upload files to the digital paper device')
-        # prefixing the argument with -- means it's optional
-        parser.add_argument('--policy', action='store_true')
-        # now that we're inside a subcommand, ignore the first two argvs
+            description='Upload files (.pdf) or directory contents to the \
+            digital paper device.\
+            By default, skip files on conflict, i.e. when a file \
+            is present locally and on the remote device.')
+        parser.add_argument('local', help='Path to the local file or directory')
+        parser.add_argument('remote', help='Path to the remote file or directory')
+        parser.add_argument('-d', '--dir', action='store_true',
+                help='Upload a whole directory.')
+        parser.add_argument('-a', '--all', action='store_true',
+                help='Upload all, that is, the whole subdirectory structure.')
+        parser.add_argument('-r', '--remote', action='store_true',
+                help='Prefer the remote file in case of a conflict.')
+        parser.add_argument('-l', '--local', action='store_true',
+                help='Prefer the local file in case of a conflict.')
+        parser.add_argument('-n', '--newer', action='store_true',
+                help='Prefer the newer file in case of a conflict.')
         args = parser.parse_args(sys.argv[2:])
-        print('Running command "dpmgr upload --policy" with arguments {}'.format(args.policy))
+        print('Running command "dpmgr upload" with arguments {}'.format(args))
 
     def download(self):
         parser = argparse.ArgumentParser(
-            description='Download files from the digital paper device')
-        print('Running command "dpmgr download"')
+            description='Download files or directory contents from the \
+            digital paper device.\
+            By default, skip files on conflict, i.e. when a file \
+            is present locally and on the remote device.')
+        parser.add_argument('remote', help='Path to the remote file or directory')
+        parser.add_argument('local', help='Path to the local file or directory')
+        parser.add_argument('-d', '--dir', action='store_true',
+                help='Download a whole directory.')
+        parser.add_argument('-a', '--all', action='store_true',
+                help='Download all, that is, the whole subdirectory structure.')
+        parser.add_argument('-r', '--remote', action='store_true',
+                help='Prefer the remote file in case of a conflict.')
+        parser.add_argument('-l', '--local', action='store_true',
+                help='Prefer the local file in case of a conflict.')
+        parser.add_argument('-n', '--newer', action='store_true',
+                help='Prefer the newer file in case of a conflict.')
+        args = parser.parse_args(sys.argv[2:])
+        print('Running command "dpmgr download" with arguments {}'.format(args))
 
     def sync(self):
         parser = argparse.ArgumentParser(
-            description='Synchronize files with the digital paper device')
-        print('Running command "dpmgr sync"')
+            description='Synchronize directory contents between the \
+            digital paper device and a local directory.\
+            By default, skip files on conflict, i.e. when a file \
+            is present locally and on the remote device.')
+        parser.add_argument('local', help='Path to the local directory')
+        parser.add_argument('remote', help='Path to the remote directory')
+        parser.add_argument('-r', '--remote', action='store_true',
+                help='Prefer the remote file in case of a conflict.')
+        parser.add_argument('-l', '--local', action='store_true',
+                help='Prefer the local file in case of a conflict.')
+        parser.add_argument('-n', '--newer', action='store_true',
+                help='Prefer the newer file in case of a conflict.')
+        args = parser.parse_args(sys.argv[2:])
+        print('Running command "dpmgr sync" with arguments {}'.format(args))
+
+    def syncpairs(self):
+        parser = argparse.ArgumentParser(
+            description='Synchronize pairs defined in the config \
+            file ~/.dpmgr/sync.conf.')
+        print('Running command "dpmgr syncpairs"')
 
     def config(self):
         parser = argparse.ArgumentParser(
             description='Manage the configuration of the device')
+        # TODO
 
     def status(self):
         parser = argparse.ArgumentParser(
             description='Check the device status')
+        # TODO
 
 
 if __name__ == '__main__':
