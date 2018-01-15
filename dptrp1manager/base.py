@@ -36,8 +36,9 @@ class DPManager(object):
 
     Parameters
     ----------
-    addr : string
-        The IP adress of the digital paper device
+    ip : string ('')
+        The IP adress of the digital paper device. If empty (the default), use
+        the config file.
     register : bool (False)
         If True, force registration of the client even if key and id files are
         found.
@@ -48,9 +49,11 @@ class DPManager(object):
         DigitalPaper instance
 
     """
-    def __init__(self, addr, register=False):
+    def __init__(self, ip='', register=False):
         super(DPManager, self).__init__()
-        self.dp = DigitalPaper(addr = addr)
+        self._config = configparser.ConfigParser()
+        self._checkconfigfile()
+        self.dp = DigitalPaper(addr = self._get_ip(ip))
         self._key_file = osp.join(CONFIGDIR, 'dptrp1_key')
         self._clientid_file = osp.join(CONFIGDIR, 'dptrp1_id')
         self._dataparser = DPDataParser()
@@ -60,6 +63,24 @@ class DPManager(object):
         self._check_registered(register)
         self._authenticate()
         self._build_tree()
+
+    def _checkconfigfile(self):
+        """Check the config file.
+
+        """
+        if osp.exists(osp.join(CONFIGDIR, 'dpmgr.conf')):
+            self._config.read(osp.join(CONFIGDIR, 'dpmgr.conf'))
+        if self._config.sections() == []:
+            self._config['Base'] = {}
+            self._config['Base']['ip'] = 'digitalpaper.local'
+        with open(osp.join(CONFIGDIR, 'dpmgr.conf'), 'w') as f:
+            self._config.write(f)
+    
+    def _get_ip(self, ip):
+        if ip == '':
+            return self._config['Base']['ip']
+        else:
+            return ip
 
     def _authenticate(self):
         with open(self._clientid_file, 'r') as f:
@@ -938,13 +959,13 @@ class DPConfig(object):
 
 
 def main():
-    dp_mgr = DPManager('digitalpaper.local')
+    dp_mgr = DPManager()
     config = DPConfig(dp_mgr)
     downloader = Downloader(dp_mgr)
     uploader = Uploader(dp_mgr)
     synchronizer = Synchronizer(dp_mgr)
 
-    synchronizer.sync_pairs()
+    # synchronizer.sync_pairs()
 
     # print(config.wifi_enabled)
 
