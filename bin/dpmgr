@@ -106,13 +106,25 @@ The dpmgr commands are:
 
     def config(self):
         parser = argparse.ArgumentParser(
-            description='Manage the configuration of the device')
-        # TODO
+            description='Manage the configuration of the device. \
+                    Invoke without arguments to get a list of all \
+                    parameters with their current value.')
+        parser.add_argument('-s', '--set', metavar='par=val',
+                help='Set a config parameter using the syntax parameter=value.')
+        parser.add_argument('-g', '--get', metavar='par',
+                help='Get the value of a configuration parameter.')
+        args = parser.parse_args(sys.argv[2:])
+        print('Running command "dpmgr config" with arguments {}'.format(args))
 
     def status(self):
         parser = argparse.ArgumentParser(
-            description='Check the device status')
-        # TODO
+            description='Get the device status. \
+                    Invoke without arguments to get a summary of \
+                    the status with all known parameters.')
+        parser.add_argument('-g', '--get', metavar='par',
+                help='Get the value of a specific status parameter.')
+        args = parser.parse_args(sys.argv[2:])
+        print('Running command "dpmgr status" with arguments {}'.format(args))
 
 
 if __name__ == '__main__':
