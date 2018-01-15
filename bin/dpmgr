@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+# coding=utf-8
+
+import argparse
+import sys
+import os
+
+class DPTRP1(object):
+
+    def __init__(self):
+        self._dp_mgr = DPManager('digitalpaper.local')
+        self._config = DPConfig(dp_mgr)
+        self._downloader = Downloader(dp_mgr)
+        self._uploader = Uploader(dp_mgr)
+        self._synchronizer = Synchronizer(dp_mgr)
+        # command line parser
+        parser = argparse.ArgumentParser(
+            description='Command line manager for the Sony DPT-RP1',
+            usage='''dpmgr <command> [<args>]
+
+The dpmgr commands are:
+   upload      Upload files to the digital paper device
+   download    Download files from the digital paper device
+   sync        Synchronize files with the digital paper device
+   config      Manage the configuration of the device
+   status      Check the device status
+''')
+        parser.add_argument('command', help='Subcommand to run')
+        # parse_args defaults to [1:] for args, but you need to
+        # exclude the rest of the args too, or validation will fail
+        args = parser.parse_args(sys.argv[1:2])
+        if not hasattr(self, args.command):
+            print('Unknown command')
+            parser.print_help()
+            exit(1)
+        # use dispatch pattern to invoke method with same name
+        getattr(self, args.command)()
+
+    def upload(self):
+        parser = argparse.ArgumentParser(
+            description='Upload files to the digital paper device')
+        # prefixing the argument with -- means it's optional
+        parser.add_argument('--policy', action='store_true')
+        # now that we're inside a subcommand, ignore the first two argvs
+        args = parser.parse_args(sys.argv[2:])
+        print('Running command "dpmgr upload --policy" with arguments {}'.format(args.policy))
+
+    def download(self):
+        parser = argparse.ArgumentParser(
+            description='Download files from the digital paper device')
+        print('Running command "dpmgr download"')
+
+    def sync(self):
+        parser = argparse.ArgumentParser(
+            description='Synchronize files with the digital paper device')
+        print('Running command "dpmgr sync"')
+
+    def config(self):
+        parser = argparse.ArgumentParser(
+            description='Manage the configuration of the device')
+
+    def status(self):
+        parser = argparse.ArgumentParser(
+            description='Check the device status')
+
+
+if __name__ == '__main__':
+    DPTRP1()

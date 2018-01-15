@@ -19,6 +19,7 @@
         "anytree>=2.4.3"
     ],
     "scripts": [
+        "dpmgr"
     ],
     "classifiers": [
         "Development Status :: 3 - Alpha",
