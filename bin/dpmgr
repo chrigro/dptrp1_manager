@@ -27,6 +27,8 @@ The dpmgr commands are:
    syncpairs   Synchronize pairs defined in the config file ~/.dpmgr/sync.conf
    config      Manage the configuration of the device
    status      Check the device status
+
+Configuration files, id and key files are stored in ~/.dpmgr.
 ''')
         parser.add_argument('command', help='Subcommand to run')
         # parse_args defaults to [1:] for args, but you need to
