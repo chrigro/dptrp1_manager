@@ -5,14 +5,16 @@ import argparse
 import sys
 import os
 
+import dptrp1manager
+
 class DPTRP1(object):
 
     def __init__(self):
-        self._dp_mgr = DPManager('digitalpaper.local')
-        self._config = DPConfig(dp_mgr)
-        self._downloader = Downloader(dp_mgr)
-        self._uploader = Uploader(dp_mgr)
-        self._synchronizer = Synchronizer(dp_mgr)
+        self._dp_mgr = dptrp1manager.DPManager('digitalpaper.local')
+        self._config = dptrp1manager.DPConfig(self._dp_mgr)
+        self._downloader = dptrp1manager.Downloader(self._dp_mgr)
+        self._uploader = dptrp1manager.Uploader(self._dp_mgr)
+        self._synchronizer = dptrp1manager.Synchronizer(self._dp_mgr)
         # command line parser
         parser = argparse.ArgumentParser(
             description='Command line manager for the Sony DPT-RP1',
