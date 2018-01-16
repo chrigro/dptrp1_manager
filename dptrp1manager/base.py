@@ -2,7 +2,7 @@
 # coding=utf-8
 
 # dptrp1manager, high level tools to interact with the Sony DPT-RP1
-# Copyright © 2018 Christian Gross (christian-gross@gmx.de)
+# Copyright © 2018 Christian Gross
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -75,7 +75,7 @@ class DPManager(object):
             self._config['Base']['ip'] = 'digitalpaper.local'
         with open(osp.join(CONFIGDIR, 'dpmgr.conf'), 'w') as f:
             self._config.write(f)
-    
+
     def _get_ip(self, ip):
         if ip == '':
             return self._config['Base']['ip']
@@ -163,10 +163,11 @@ class DPManager(object):
         for pre, _, node in anytree.render.RenderTree(self._content_tree):
             print("{}{}".format(pre, node.name))
 
-    def print_dir_tree(self):
-        for pre, _, node in anytree.render.RenderTree(self._content_tree):
-            if not node.isfile:
-                print("{}{}".format(pre, node.name))
+    def print_dir_tree(self, path):
+        if self.node_name_ok(path) and self.node_exists(path, print_error=False):
+            for pre, _, node in anytree.render.RenderTree(self.get_node(path)):
+                if not node.isfile:
+                    print("{}{}".format(pre, node.name))
 
     def _sizeof_fmt(self, num, suffix='B'):
         for unit in ['','k','M','G','T','P','E','Z']:
@@ -209,8 +210,8 @@ class DPManager(object):
             return False
 
     def node_name_ok(self, name):
-        if not name.startswith('/Document/'):
-            print('ERROR: DPT-RP1 file or folder name must start with "/Document/"')
+        if not name.startswith('/Document'):
+            print('ERROR: DPT-RP1 file or folder name must start with "/Document"')
             return False
         else:
             return True
@@ -522,7 +523,7 @@ class Downloader(FileTransferHandler):
 
         """
         if (self._check_policy(policy) and
-                self._dp_mgr.node_name_ok(source) and 
+                self._dp_mgr.node_name_ok(source) and
                 self._dp_mgr.node_exists(source)):
             src_files = self._dp_mgr.get_folder_contents(source)
             if self._local_path_ok(dest):
@@ -549,7 +550,7 @@ class Downloader(FileTransferHandler):
         if not self._local_path_ok(dest):
             return None
         if (self._check_policy(policy) and
-                self._dp_mgr.node_name_ok(source) and 
+                self._dp_mgr.node_name_ok(source) and
                 self._dp_mgr.node_exists(source)):
             src_nodes = self._dp_mgr.get_folder_contents(source)
             for f in src_nodes:

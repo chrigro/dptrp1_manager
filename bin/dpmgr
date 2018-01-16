@@ -1,6 +1,23 @@
 #!/usr/bin/env python
 # coding=utf-8
 
+# dptrp1manager, high level tools to interact with the Sony DPT-RP1
+# Copyright © 2018 Christian Gross
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
 import argparse
 import sys
 import os
@@ -56,18 +73,33 @@ Configuration files, id and key files are stored in ~/.dpmgr.
             is present locally and on the remote device.')
         parser.add_argument('local', help='Path to the local file or directory')
         parser.add_argument('remote', help='Path to the remote file or directory')
-        parser.add_argument('-d', '--dir', action='store_true',
+        group1 = parser.add_mutually_exclusive_group()
+        group1.add_argument('-d', '--dir', action='store_true',
                 help='Upload a whole directory.')
-        parser.add_argument('-a', '--all', action='store_true',
+        group1.add_argument('-a', '--all', action='store_true',
                 help='Upload all, that is, the whole subdirectory structure.')
-        parser.add_argument('-r', '--remote', action='store_true',
+        group2 = parser.add_mutually_exclusive_group()
+        group2.add_argument('-r', '--remote_wins', action='store_true',
                 help='Prefer the remote file in case of a conflict.')
-        parser.add_argument('-l', '--local', action='store_true',
+        group2.add_argument('-l', '--local_wins', action='store_true',
                 help='Prefer the local file in case of a conflict.')
-        parser.add_argument('-n', '--newer', action='store_true',
+        group2.add_argument('-n', '--newer', action='store_true',
                 help='Prefer the newer file in case of a conflict.')
+        # decide what to do
         args = parser.parse_args(sys.argv[2:])
-        print('Running command "dpmgr upload" with arguments {}'.format(args))
+        policy = 'skip'
+        if args.remote_wins:
+            policy = 'remote_wins'
+        elif args.local_wins:
+            policy = 'local_wins'
+        elif args.newer:
+            policy = 'newer'
+        if args.all:
+            self._uploader.upload_recursively(args.local, args.remote, policy)
+        elif args.dir:
+            self._uploader.upload_folder_contents(args.local, args.remote, policy)
+        else:
+            self._uploader.upload_file(args.local, args.remote, policy)
 
     def download(self):
         parser = argparse.ArgumentParser(
@@ -77,18 +109,33 @@ Configuration files, id and key files are stored in ~/.dpmgr.
             is present locally and on the remote device.')
         parser.add_argument('remote', help='Path to the remote file or directory')
         parser.add_argument('local', help='Path to the local file or directory')
-        parser.add_argument('-d', '--dir', action='store_true',
+        group1 = parser.add_mutually_exclusive_group()
+        group1.add_argument('-d', '--dir', action='store_true',
                 help='Download a whole directory.')
-        parser.add_argument('-a', '--all', action='store_true',
+        group1.add_argument('-a', '--all', action='store_true',
                 help='Download all, that is, the whole subdirectory structure.')
-        parser.add_argument('-r', '--remote', action='store_true',
+        group2 = parser.add_mutually_exclusive_group()
+        group2.add_argument('-r', '--remote_wins', action='store_true',
                 help='Prefer the remote file in case of a conflict.')
-        parser.add_argument('-l', '--local', action='store_true',
+        group2.add_argument('-l', '--local_wins', action='store_true',
                 help='Prefer the local file in case of a conflict.')
-        parser.add_argument('-n', '--newer', action='store_true',
+        group2.add_argument('-n', '--newer', action='store_true',
                 help='Prefer the newer file in case of a conflict.')
+        # decide what to do
         args = parser.parse_args(sys.argv[2:])
-        print('Running command "dpmgr download" with arguments {}'.format(args))
+        policy = 'skip'
+        if args.remote_wins:
+            policy = 'remote_wins'
+        elif args.local_wins:
+            policy = 'local_wins'
+        elif args.newer:
+            policy = 'newer'
+        if args.all:
+            self._downloader.download_recursively(args.remote, args.local, policy)
+        elif args.dir:
+            self._downloader.download_folder_contents(args.remote, args.local, policy)
+        else:
+            self._downloader.download_file(args.remote, args.local, policy)
 
     def tree(self):
         parser = argparse.ArgumentParser(
@@ -98,25 +145,35 @@ Configuration files, id and key files are stored in ~/.dpmgr.
         parser.add_argument('-a', '--all', action='store_true',
                 help='List all, that is, include also files.')
         args = parser.parse_args(sys.argv[2:])
-        print('Running command "dpmgr tree" with arguments {}'.format(args))
-    
+        if args.all:
+            self._dp_mgr.print_folder_contents(args.remote_path)
+        else:
+            self._dp_mgr.print_dir_tree(args.remote_path)
+
     def delete(self):
         parser = argparse.ArgumentParser(
             description='Delete documents and directories on the digital paper device')
         parser.add_argument('remote_path', help='Path to the root remote file or directory.')
-        parser.add_argument('-a', '--all', action='store_true',
+        group1 = parser.add_mutually_exclusive_group()
+        group1.add_argument('-a', '--all', action='store_true',
                 help='Remove all files in the directory, but do not recurse into subdirectories.')
-        parser.add_argument('-r', '--recursive', action='store_true',
+        group1.add_argument('-r', '--recursive', action='store_true',
                 help='Remove all files and subdirectories in the directory.')
+        # decide what to do
         args = parser.parse_args(sys.argv[2:])
-        print('Running command "dpmgr delete" with arguments {}'.format(args))
+        if args.all:
+            self._dp_mgr.rm_allfiles_recursively(args.remote_path)
+        elif args.dir:
+            self._dp_mgr.rm_allfiles(args.remote_path)
+        else:
+            self._dp_mgr.rm(args.remote_path)
 
     def mkdir(self):
         parser = argparse.ArgumentParser(
             description='Create a new directory on the digital paper device')
         parser.add_argument('remote_path', help='Path of the new remote directory.')
         args = parser.parse_args(sys.argv[2:])
-        print('Running command "dpmgr mkdir" with arguments {}'.format(args))
+        self._dp_mgr.mkdir(args.remote_path)
 
     def sync(self):
         parser = argparse.ArgumentParser(
@@ -126,20 +183,29 @@ Configuration files, id and key files are stored in ~/.dpmgr.
             is present locally and on the remote device.')
         parser.add_argument('local', help='Path to the local directory')
         parser.add_argument('remote', help='Path to the remote directory')
-        parser.add_argument('-r', '--remote', action='store_true',
+        group2 = parser.add_mutually_exclusive_group()
+        group2.add_argument('-r', '--remote_wins', action='store_true',
                 help='Prefer the remote file in case of a conflict.')
-        parser.add_argument('-l', '--local', action='store_true',
+        group2.add_argument('-l', '--local_wins', action='store_true',
                 help='Prefer the local file in case of a conflict.')
-        parser.add_argument('-n', '--newer', action='store_true',
+        group2.add_argument('-n', '--newer', action='store_true',
                 help='Prefer the newer file in case of a conflict.')
+        # decide what to do
         args = parser.parse_args(sys.argv[2:])
-        print('Running command "dpmgr sync" with arguments {}'.format(args))
+        policy = 'skip'
+        if args.remote_wins:
+            policy = 'remote_wins'
+        elif args.local_wins:
+            policy = 'local_wins'
+        elif args.newer:
+            policy = 'newer'
+        self._synchronizer.sync_folder(args.local, args.remote, policy)
 
     def syncpairs(self):
         parser = argparse.ArgumentParser(
             description='Synchronize pairs defined in the config \
             file ~/.dpmgr/sync.conf.')
-        print('Running command "dpmgr syncpairs"')
+        self._synchronizer.sync_pairs()
 
     def config(self):
         parser = argparse.ArgumentParser(
@@ -152,6 +218,7 @@ Configuration files, id and key files are stored in ~/.dpmgr.
                 help='Get the value of a configuration parameter.')
         args = parser.parse_args(sys.argv[2:])
         print('Running command "dpmgr config" with arguments {}'.format(args))
+        # TODO
 
     def add_wifi(self):
         parser = argparse.ArgumentParser(
@@ -177,6 +244,7 @@ Configuration files, id and key files are stored in ~/.dpmgr.
                 help='Behind a proxy')
         args = parser.parse_args(sys.argv[2:])
         print('Running command "dpmgr add_wifi" with arguments {}'.format(args))
+        # TODO
 
     def delete_wifi(self):
         parser = argparse.ArgumentParser(
@@ -185,11 +253,13 @@ Configuration files, id and key files are stored in ~/.dpmgr.
         parser.add_argument('secured', help='Indicate if the network is a secure one.')
         args = parser.parse_args(sys.argv[2:])
         print('Running command "dpmgr delete_wifi" with arguments {}'.format(args))
+        # TODO
 
     def scan_wifi(self):
         parser = argparse.ArgumentParser(
             description='Scan the available wifi networks.')
         print('Running command "dpmgr scan_wifi"')
+        # TODO
 
     def status(self):
         parser = argparse.ArgumentParser(
@@ -200,6 +270,7 @@ Configuration files, id and key files are stored in ~/.dpmgr.
                 help='Get the value of a specific status parameter.')
         args = parser.parse_args(sys.argv[2:])
         print('Running command "dpmgr status" with arguments {}'.format(args))
+        # TODO
 
 
 if __name__ == '__main__':
