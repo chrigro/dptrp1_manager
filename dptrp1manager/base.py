@@ -255,6 +255,17 @@ class DPManager(object):
             print('Deleting file {}.'.format(path))
             self.dp.delete_document(path[1:])
 
+    def rm(self, path):
+        """Delete a file or (empty) directory.
+
+        """
+        if (self.node_name_ok(path) and self.node_exists(path)):
+            n = self.get_node(path)
+            if n.isfile == True:
+                self.rm_file(path)
+            else:
+                self.rm_dir(path)
+
     def rm_allfiles(self, path):
         """Delete all files in a directory on the DPT-RP1, but do not recurse
         into subdirectories.

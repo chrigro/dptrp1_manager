@@ -23,10 +23,16 @@ class DPTRP1(object):
 The dpmgr commands are:
    upload      Upload files or directory contents to the digital paper device
    download    Download files or directory contents from the digital paper device
+   tree        List documents and directories on the digital paper device in a tree
+   delete      Delete documents and directories on the digital paper device
+   mkdir       Create a new directory on the digital paper device
    sync        Synchronize files or directory contents with the digital paper device
    syncpairs   Synchronize pairs defined in the config file ~/.dpmgr/sync.conf
-   config      Manage the configuration of the device
    status      Check the device status
+   config      Manage the configuration of the device
+   add-wifi    Add a wifi network
+   delete-wifi Delete a wifi network
+   scan-wifi   Scan for the available wifi networks
 
 Configuration files, id and key files are stored in ~/.dpmgr.
 ''')
@@ -39,7 +45,8 @@ Configuration files, id and key files are stored in ~/.dpmgr.
             parser.print_help()
             exit(1)
         # use dispatch pattern to invoke method with same name
-        getattr(self, args.command)()
+        method = getattr(self, args.command.replace('-', '_'))
+        method()
 
     def upload(self):
         parser = argparse.ArgumentParser(
@@ -83,6 +90,34 @@ Configuration files, id and key files are stored in ~/.dpmgr.
         args = parser.parse_args(sys.argv[2:])
         print('Running command "dpmgr download" with arguments {}'.format(args))
 
+    def tree(self):
+        parser = argparse.ArgumentParser(
+            description='List documents and directories on the digital paper device \
+                    in a tree structure.')
+        parser.add_argument('remote_path', help='Path to the root remote directory.')
+        parser.add_argument('-a', '--all', action='store_true',
+                help='List all, that is, include also files.')
+        args = parser.parse_args(sys.argv[2:])
+        print('Running command "dpmgr tree" with arguments {}'.format(args))
+    
+    def delete(self):
+        parser = argparse.ArgumentParser(
+            description='Delete documents and directories on the digital paper device')
+        parser.add_argument('remote_path', help='Path to the root remote file or directory.')
+        parser.add_argument('-a', '--all', action='store_true',
+                help='Remove all files in the directory, but do not recurse into subdirectories.')
+        parser.add_argument('-r', '--recursive', action='store_true',
+                help='Remove all files and subdirectories in the directory.')
+        args = parser.parse_args(sys.argv[2:])
+        print('Running command "dpmgr delete" with arguments {}'.format(args))
+
+    def mkdir(self):
+        parser = argparse.ArgumentParser(
+            description='Create a new directory on the digital paper device')
+        parser.add_argument('remote_path', help='Path of the new remote directory.')
+        args = parser.parse_args(sys.argv[2:])
+        print('Running command "dpmgr mkdir" with arguments {}'.format(args))
+
     def sync(self):
         parser = argparse.ArgumentParser(
             description='Synchronize directory contents between the \
@@ -117,6 +152,44 @@ Configuration files, id and key files are stored in ~/.dpmgr.
                 help='Get the value of a configuration parameter.')
         args = parser.parse_args(sys.argv[2:])
         print('Running command "dpmgr config" with arguments {}'.format(args))
+
+    def add_wifi(self):
+        parser = argparse.ArgumentParser(
+            description='Add a wifi network.')
+        parser.add_argument('ssid', help='SSID (name) of the wifi network.')
+        parser.add_argument('-s', '--secured', action='store_true',
+                help='Indicate that the wifi is secured by a password.')
+        parser.add_argument('-p', '--password',
+                help='The password.')
+        parser.add_argument('--static', action='store_true',
+                help='Configure a static address.')
+        parser.add_argument('--ip-address',
+                help='The static ip address.')
+        parser.add_argument('--gateway',
+                help='The gateway for a static configuration.')
+        parser.add_argument('--network-mask',
+                help='The network mask for a static configuration.')
+        parser.add_argument('--dns1',
+                help='The address of the first dns server for a static configuration.')
+        parser.add_argument('--dns2',
+                help='The address of the second dns server for a static configuration.')
+        parser.add_argument('--proxy', action='store_true',
+                help='Behind a proxy')
+        args = parser.parse_args(sys.argv[2:])
+        print('Running command "dpmgr add_wifi" with arguments {}'.format(args))
+
+    def delete_wifi(self):
+        parser = argparse.ArgumentParser(
+            description='Delete a wifi network.')
+        parser.add_argument('ssid', help='SSID (name) of the wifi network.')
+        parser.add_argument('secured', help='Indicate if the network is a secure one.')
+        args = parser.parse_args(sys.argv[2:])
+        print('Running command "dpmgr delete_wifi" with arguments {}'.format(args))
+
+    def scan_wifi(self):
+        parser = argparse.ArgumentParser(
+            description='Scan the available wifi networks.')
+        print('Running command "dpmgr scan_wifi"')
 
     def status(self):
         parser = argparse.ArgumentParser(
