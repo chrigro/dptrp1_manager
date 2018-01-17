@@ -21,6 +21,16 @@
 from subprocess import check_output
 import sys
 
+def check_link(devs):
+    if sys.platform == 'linux' or sys.platform == 'linux2':
+        for dev, val in devs.items():
+            scanoutput = check_output(['iw', 'dev', dev, 'link']).decode()
+            lines = scanoutput.split('\n')
+            for nn, line in enumerate(lines):
+                line = line.strip()
+                if line.startswith('SSID'):
+                    devs[dev] = line.split()[1]
+
 def get_ssids():
     """Find connected wireless networks.
 
@@ -32,7 +42,7 @@ def get_ssids():
 
     """
     if sys.platform == 'linux' or sys.platform == 'linux2':
-        scanoutput = check_output(["iw", "dev"]).decode()
+        scanoutput = check_output(['iw', 'dev']).decode()
         lines = scanoutput.split('\n')
         devs = {}
         lastdev = ''
@@ -43,6 +53,13 @@ def get_ssids():
                 devs[lastdev] = ''
             if line.startswith('ssid'):
                 devs[lastdev] = line.split()[1]
+        conn = False
+        for val in devs.values():
+            if not val == '':
+                conn = True
+        if not conn:
+            # we need to check again for the ssid using iw dev <name> link for each dev
+            check_link(devs)
         return devs
     else:
         print('Can check for wireless devices only on linux.')

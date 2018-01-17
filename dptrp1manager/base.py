@@ -85,6 +85,7 @@ class DPManager(object):
         if ip == '':
             ip = self._config['IP']['default']
             ssids = tools.get_ssids()
+            print('Network info: {}'.format(ssids))
             if ssids is not None:
                 # we are on linux, try to find configured ip
                 for ssid in ssids.values():
@@ -509,11 +510,11 @@ class Downloader(FileTransferHandler):
             if osp.exists(dest):
                 if self._is_equal(dest, source):
                     do_transfer = False
-                    print('Skipping download of {}. Already present and equal.'.format(source))
+                    print('EQUAL: Skipping download of {}'.format(osp.basename(source)))
                 else:
                     if policy == 'local_wins':
                         do_transfer = False
-                        print('Skipping download of {}. Already present and local_wins.'.format(source))
+                        print('LOCAL_WINS: Skipping download of {}'.format(osp.basename(source)))
                     elif policy == 'remote_wins':
                         do_transfer = True
                     elif policy == 'newer':
@@ -521,10 +522,10 @@ class Downloader(FileTransferHandler):
                             do_transfer = True
                         else:
                             do_transfer = False
-                            print('Skipping download of {}. Already present and local file newer.'.format(source))
+                            print('NEWER: Skipping download of {}'.format(osp.basename(source)))
                     elif policy == 'skip':
                         do_transfer = False
-                        print('Skipping download of {}. Already present and skip.'.format(source))
+                        print('SKIP: Skipping download of {}'.format(osp.basename(source)))
             if do_transfer:
                 print('Downloading {}'.format(source))
                 data = self._dp_mgr.dp.download(source[1:])
@@ -569,7 +570,6 @@ class Downloader(FileTransferHandler):
             for f in src_nodes:
                 if f.isfile:
                     src_fp = osp.join(source, f.name)
-                    print('Downloading {}'.format(src_fp))
                     self.download_file(src_fp, osp.join(dest, f.name), policy)
                 else:
                     new_local_path = osp.join(dest, f.name)
@@ -609,7 +609,7 @@ class Uploader(FileTransferHandler):
             if self._dp_mgr.node_exists(dest, print_error=False):
                 if self._is_equal(source, dest):
                     do_transfer = False
-                    print('Skipping upload of {}. Already present and equal.'.format(source))
+                    print('EQUAL: Skipping upload of {}'.format(osp.basename(source)))
                 else:
                     if policy == 'local_wins':
                         # delete the old file
@@ -617,7 +617,7 @@ class Uploader(FileTransferHandler):
                         do_transfer = True
                     elif policy == 'remote_wins':
                         do_transfer = False
-                        print('Skipping upload of {}. Already present and remote_wins.'.format(source))
+                        print('REMOTE_WINS: Skipping upload of {}'.format(osp.basename(source)))
                     elif policy == 'newer':
                         if self._check_datetime(source, dest) == 'local_newer':
                             # delete the old file
@@ -625,10 +625,10 @@ class Uploader(FileTransferHandler):
                             do_transfer = True
                         else:
                             do_transfer = False
-                            print('Skipping upload of {}. Already present and remote file newer.'.format(source))
+                            print('NEWER: Skipping upload of {}'.format(osp.basename(source)))
                     elif policy == 'skip':
                         do_transfer = False
-                        print('Skipping upload of {}. Already present and skip.'.format(source))
+                        print('SKIP: Skipping upload of {}'.format(osp.basename(source)))
             if do_transfer:
                 print('Adding file {}'.format(dest))
                 with open(source, 'rb') as f:
