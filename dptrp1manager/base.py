@@ -26,6 +26,7 @@ import configparser
 
 import anytree
 from dptrp1.dptrp1 import DigitalPaper
+from dptrp1manager import tools
 
 from pprint import pprint
 
@@ -53,7 +54,11 @@ class DPManager(object):
         super(DPManager, self).__init__()
         self._config = configparser.ConfigParser()
         self._checkconfigfile()
-        self.dp = DigitalPaper(addr = self._get_ip(ip))
+        addr = self._get_ip(ip)
+        print('Attempting connection to ip {}'.format(addr))
+        self.dp = DigitalPaper(addr)
+        if self.dp is None:
+            sys.exit(1)
         self._key_file = osp.join(CONFIGDIR, 'dptrp1_key')
         self._clientid_file = osp.join(CONFIGDIR, 'dptrp1_id')
         self._dataparser = DPDataParser()
@@ -70,17 +75,25 @@ class DPManager(object):
         """
         if osp.exists(osp.join(CONFIGDIR, 'dpmgr.conf')):
             self._config.read(osp.join(CONFIGDIR, 'dpmgr.conf'))
-        if self._config.sections() == []:
-            self._config['Base'] = {}
-            self._config['Base']['ip'] = 'digitalpaper.local'
+        if not self._config.has_section('IP'):
+            self._config['IP'] = {}
+            self._config['IP']['default'] = 'digitalpaper.local'
         with open(osp.join(CONFIGDIR, 'dpmgr.conf'), 'w') as f:
             self._config.write(f)
 
     def _get_ip(self, ip):
         if ip == '':
-            return self._config['Base']['ip']
-        else:
-            return ip
+            ip = self._config['IP']['default']
+            ssids = tools.get_ssids()
+            if ssids is not None:
+                # we are on linux, try to find configured ip
+                for ssid in ssids.values():
+                    if not ssid == '':
+                        if self._config.has_option('IP', ssid):
+                            ip = self._config['IP'][ssid]
+                        else:
+                            print('No custom IP defined for network {}'.format(ssid))
+        return ip
 
     def _authenticate(self):
         with open(self._clientid_file, 'r') as f:
