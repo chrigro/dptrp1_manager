@@ -501,7 +501,8 @@ class Downloader(FileTransferHandler):
         if (self._check_policy(policy) and
                 self._dp_mgr.node_name_ok(source) and
                 self._dp_mgr.node_exists(source) and
-                self._local_path_ok(osp.dirname(dest))):
+                self._local_path_ok(osp.dirname(dest)) and
+                self._dp_mgr.get_node(source).isfile):
             do_transfer = True
             if osp.exists(dest):
                 if self._is_equal(dest, source):
@@ -527,6 +528,8 @@ class Downloader(FileTransferHandler):
                 data = self._dp_mgr.dp.download(source[1:])
                 with open(dest, 'wb') as f:
                     f.write(data)
+        else:
+            print('ERROR: Failed downloading {}. File not found.'.format(source))
 
     def download_folder_contents(self, source, dest, policy='skip'):
         """Download a full folder from the DPT-RP1.
