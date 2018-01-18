@@ -493,11 +493,12 @@ class Downloader(FileTransferHandler):
         source : string
             Full path to the file on the DPT-RP1
         dest : string
-            Full path to the destination including the file name
+            Path to the destination including the file name
         policy : 'remote_wins', 'local_wins', 'newer', 'skip'
             Decide what to do if the file is already present.
 
         """
+        dest = osp.expanduser(dest)
         if (self._check_policy(policy) and
                 self._dp_mgr.node_name_ok(source) and
                 self._dp_mgr.node_exists(source) and
@@ -535,6 +536,7 @@ class Downloader(FileTransferHandler):
         """Download a full folder from the DPT-RP1.
 
         """
+        dest = osp.expanduser(dest)
         if (self._check_policy(policy) and
                 self._dp_mgr.node_name_ok(source) and
                 self._dp_mgr.node_exists(source)):
@@ -549,6 +551,7 @@ class Downloader(FileTransferHandler):
         """Download recursively.
 
         """
+        dest = osp.expanduser(dest)
         if not self._local_path_ok(dest):
             return None
         if (self._check_policy(policy) and
@@ -581,13 +584,14 @@ class Uploader(FileTransferHandler):
         Parameter
         ---------
         source : string
-            Full path to the source
+            Path to the source
         dest : string
             Full path to the file on the DPT-RP1 (incl. file name)
         policy : 'remote_wins', 'local_wins', 'newer', 'skip'
             Decide what to do if the file is already present.
 
         """
+        source = osp.expanduser(source)
         if (self._check_policy(policy) and
                 self._dp_mgr.node_name_ok(dest) and
                 self._dp_mgr.node_exists(dest.rsplit('/', maxsplit=1)[0]) and
@@ -626,6 +630,7 @@ class Uploader(FileTransferHandler):
         """Upload a full folder to the DPT-RP1.
 
         """
+        source = osp.expanduser(source)
         if (self._check_policy(policy) and
                 self._local_path_ok(source)):
             src_files = (osp.join(source, fn) for fn in os.listdir(source)
@@ -639,6 +644,7 @@ class Uploader(FileTransferHandler):
         """Upload recursively.
 
         """
+        source = osp.expanduser(source)
         if (self._check_policy(policy) and
                 self._local_path_ok(source)):
             if self._dp_mgr.node_name_ok(dest) and self._dp_mgr.node_exists(dest):
@@ -677,7 +683,7 @@ class Synchronizer(FileTransferHandler):
             self._config.read(osp.join(CONFIGDIR, 'sync.conf'))
         if self._config.sections() == []:
             self._config['pair1'] = {}
-            self._config['pair1']['local_path'] = '<replace by absolute local path>'
+            self._config['pair1']['local_path'] = '<replace by local path>'
             self._config['pair1']['remote_path'] = '<replace by remote path>'
             self._config['pair1']['policy'] = '<one of: remote_wins, local_wins, newer, skip>'
         with open(osp.join(CONFIGDIR, 'sync.conf'), 'w') as f:
@@ -689,7 +695,7 @@ class Synchronizer(FileTransferHandler):
         Parameters
         ----------
         local : string
-            Full path to the source
+            Path to the source
         remote : string
             Full path to the folder on the DPT-RP1
         policy : 'remote_wins', 'local_wins', 'newer', 'skip'
@@ -741,11 +747,12 @@ class DPConfig(object):
         self._dp_mgr.dp.delete_template(name)
 
     def add_template(self, name, path):
+        path = osp.expanduser(path)
         if osp.exists(path) and path.endswith('.pdf'):
             with open(path, 'rb') as f:
                 self._dp_mgr.dp.add_template(name, f)
         else:
-            print('Adding template failed. File not found or not a pdf file.')
+            print('Adding template failed. File {} not found or not a pdf file.'.format(path))
 
     @property
     def timeout(self):
