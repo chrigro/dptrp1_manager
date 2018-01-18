@@ -29,7 +29,7 @@ The key and id file necessary to interact with the digital paper are stored in
 
 - `~/.dpmgr/sync.conf`: This file provides a possibility to define
   synchronization pairs, which are all synchronized when running `dpmgr
-  syncpairs`. A synchronization pair is defined by A local and a remote path
+  syncpairs`. A synchronization pair is defined by a local and a remote path
   and the policy to decide which file to keep in case it is present locally and
   remotely.
 
