@@ -37,3 +37,5 @@ The key and id file necessary to interact with the digital paper are stored in
 ## Note:
 
 Not all commands have been tested yet, but the majority of them works for me.
+Please notice that the sync command overrides files either on the remote or
+locally depending on the defined policy.
