@@ -738,11 +738,11 @@ class DPConfig(object):
         self._dp_mgr.dp.delete_template(name)
 
     def add_template(self, name, path):
-        if osp.exists(path):
+        if osp.exists(path) and path.endswith('.pdf'):
             with open(path, 'rb') as f:
                 self._dp_mgr.dp.add_template(name, f)
         else:
-            print('Adding template failed. File not found.')
+            print('Adding template failed. File not found or not a pdf file.')
 
     @property
     def timeout(self):
@@ -757,7 +757,7 @@ class DPConfig(object):
         self.dp._dp_mgr.set_timeout(value)
 
     @property
-    def owner():
+    def owner(self):
         """Owner of the device (for pdf comments)
 
         """
@@ -906,7 +906,7 @@ class DPConfig(object):
         """
         return self._dp_mgr.dp.wifi_scan()
 
-    def add_wifi(self, ssid, security, passwd, dhcp=True, static_address='', gateway='',
+    def add_wifi(self, ssid, security='nonsec', passwd='', dhcp=True, static_address='', gateway='',
             network_mask='', dns1='', dns2='', proxy=False):
         """Add a wifi network.
 
@@ -915,9 +915,9 @@ class DPConfig(object):
         ssid : string
             Wifi network name
         security : string ('nonsec', 'psk')
-            Wifi security
+            Wifi security, default is 'nonsec'
         passwd : string
-            Password
+            Password, default is ''
         dhcp : bool (default True)
             Use dhcp for ip address management?
         static_address : string (default '')
@@ -937,7 +937,7 @@ class DPConfig(object):
         self._dp_mgr.dp.configure_wifi(ssid, security, passwd, dhcp,
                 static_address, gateway, network_mask, dns1, dns2, proxy)
 
-    def delete_wifi(self, ssid, security):
+    def delete_wifi(self, ssid, security='nonsec'):
         """Delete a known wifi
 
         Parameters
@@ -945,7 +945,7 @@ class DPConfig(object):
         ssid : string
             Wifi network name
         security : string ('nonsec', 'psk')
-            Wifi security
+            Wifi security, default is 'nonsec'
 
         """
         self._dp_mgr.dp.delete_wifi(ssid, security)

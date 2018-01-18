@@ -21,6 +21,7 @@
 import argparse
 import sys
 import os
+from pprint import pprint
 
 import dptrp1manager
 
@@ -28,10 +29,10 @@ class DPTRP1(object):
 
     def __init__(self):
         self._dp_mgr = dptrp1manager.DPManager()
-        self._config = dptrp1manager.DPConfig(self._dp_mgr)
-        self._downloader = dptrp1manager.Downloader(self._dp_mgr)
-        self._uploader = dptrp1manager.Uploader(self._dp_mgr)
-        self._synchronizer = dptrp1manager.Synchronizer(self._dp_mgr)
+        self._dp_config = dptrp1manager.DPConfig(self._dp_mgr)
+        self._dp_downloader = dptrp1manager.Downloader(self._dp_mgr)
+        self._dp_uploader = dptrp1manager.Uploader(self._dp_mgr)
+        self._dp_synchronizer = dptrp1manager.Synchronizer(self._dp_mgr)
         # command line parser
         parser = argparse.ArgumentParser(
             description='Command line manager for the Sony DPT-RP1',
@@ -50,6 +51,8 @@ The dpmgr commands are:
    add-wifi             Add a wifi network
    delete-wifi          Delete a wifi network
    scan-wifi            Scan for the available wifi networks
+   list-wifi            List all known wifi networks
+   list-templates       List all templates
    rename-template      Rename a template
    upload-template      Upload a new template
    delete-template      Delete a template
@@ -60,12 +63,13 @@ Configuration files, id and key files are stored in ~/.dpmgr.
         # parse_args defaults to [1:] for args, but you need to
         # exclude the rest of the args too, or validation will fail
         args = parser.parse_args(sys.argv[1:2])
-        if not hasattr(self, args.command):
+        command = args.command.replace('-', '_')
+        if not hasattr(self, command):
             print('Unknown command')
             parser.print_help()
             exit(1)
         # use dispatch pattern to invoke method with same name
-        method = getattr(self, args.command.replace('-', '_'))
+        method = getattr(self, command)
         method()
 
     def upload(self):
@@ -98,11 +102,11 @@ Configuration files, id and key files are stored in ~/.dpmgr.
         elif args.newer:
             policy = 'newer'
         if args.all:
-            self._uploader.upload_recursively(args.local, args.remote, policy)
+            self._dp_uploader.upload_recursively(args.local, args.remote, policy)
         elif args.dir:
-            self._uploader.upload_folder_contents(args.local, args.remote, policy)
+            self._dp_uploader.upload_folder_contents(args.local, args.remote, policy)
         else:
-            self._uploader.upload_file(args.local, args.remote, policy)
+            self._dp_uploader.upload_file(args.local, args.remote, policy)
 
     def download(self):
         parser = argparse.ArgumentParser(
@@ -134,11 +138,11 @@ Configuration files, id and key files are stored in ~/.dpmgr.
         elif args.newer:
             policy = 'newer'
         if args.all:
-            self._downloader.download_recursively(args.remote, args.local, policy)
+            self._dp_downloader.download_recursively(args.remote, args.local, policy)
         elif args.dir:
-            self._downloader.download_folder_contents(args.remote, args.local, policy)
+            self._dp_downloader.download_folder_contents(args.remote, args.local, policy)
         else:
-            self._downloader.download_file(args.remote, args.local, policy)
+            self._dp_downloader.download_file(args.remote, args.local, policy)
 
     def tree(self):
         parser = argparse.ArgumentParser(
@@ -202,33 +206,52 @@ Configuration files, id and key files are stored in ~/.dpmgr.
             policy = 'local_wins'
         elif args.newer:
             policy = 'newer'
-        self._synchronizer.sync_folder(args.local, args.remote, policy)
+        self._dp_synchronizer.sync_folder(args.local, args.remote, policy)
 
     def syncpairs(self):
         parser = argparse.ArgumentParser(
             description='Synchronize pairs defined in the config \
             file ~/.dpmgr/sync.conf.')
-        self._synchronizer.sync_pairs()
+        self._dp_synchronizer.sync_pairs()
 
     def config(self):
+        parameterlist = ('timeout', 'owner', 'time_format', 'date_format', 'timezone')
         parser = argparse.ArgumentParser(
-            description='Manage the configuration of the device. \
-                    Invoke without arguments to get a list of all \
-                    parameters with their current value.')
-        parser.add_argument('-s', '--set', metavar='par=val',
-                help='Set a config parameter using the syntax parameter=value.')
-        parser.add_argument('-g', '--get', metavar='par',
-                help='Get the value of a configuration parameter.')
+            description='Manage the configuration of the device.')
+        parser.add_argument('-p', '--parameter',
+                help='The parameter to set.')
+        parser.add_argument('-v', '--value',
+                help='The value to set.')
         args = parser.parse_args(sys.argv[2:])
-        print('Running command "dpmgr config" with arguments {}'.format(args))
+        if args.parameter and args.value:
+            if args.parameter not in parameterlist:
+                print('Parameter {} unknown.'.format(args.parameter))
+                sys.exit(1)
+            else:
+                setattr(self._dp_config, args.parameter, args.value)
+        elif args.parameter and (not args.value):
+            if args.parameter not in parameterlist:
+                print('Parameter {} unknown.'.format(args.parameter))
+                sys.exit(1)
+            else:
+                val = getattr(self._dp_config, args.parameter)
+                print('{}: {}'.format(args.parameter, val))
+        elif (not args.parameter) and (not args.value):
+            print('---Current configuration---')
+            for par in parameterlist:
+                val = getattr(self._dp_config, par)
+                print('{}: {}'.format(par, val))
+        else:
+            print('Using -v alone makes no sense.')
 
-    # TODO
+
     def add_wifi(self):
         parser = argparse.ArgumentParser(
             description='Add a wifi network.')
-        parser.add_argument('ssid', help='SSID (name) of the wifi network.')
-        parser.add_argument('-s', '--secured', action='store_true',
-                help='Indicate that the wifi is secured by a password.')
+        parser.add_argument('ssid',
+                help='SSID (name) of the wifi network.')
+        parser.add_argument('-s', '--security',
+                help='The network security (psk).')
         parser.add_argument('-p', '--password',
                 help='The password.')
         parser.add_argument('--static', action='store_true',
@@ -239,41 +262,118 @@ Configuration files, id and key files are stored in ~/.dpmgr.
                 help='The gateway for a static configuration.')
         parser.add_argument('--network-mask',
                 help='The network mask for a static configuration.')
-        parser.add_argument('--dns1',
+        parser.add_argument('--dns1', default='',
                 help='The address of the first dns server for a static configuration.')
-        parser.add_argument('--dns2',
+        parser.add_argument('--dns2', default='',
                 help='The address of the second dns server for a static configuration.')
         parser.add_argument('--proxy', action='store_true',
                 help='Behind a proxy')
         args = parser.parse_args(sys.argv[2:])
-        print('Running command "dpmgr add_wifi" with arguments {}'.format(args))
-        # TODO
+        if not args.security:
+            self._dp_config.add_wifi(args.ssid)
+        elif args.security == 'psk':
+            if not args.passwd:
+                print('Password must be specified with -p.')
+                sys.exit(1)
+            else:
+                if not args.static:
+                    self._dp_config.add_wifi(args.ssid, args.security, args.passwd)
+                else:
+                    self._dp_config.add_wifi(args.ssid, args.security, args.passwd, False,
+                            args.ip_address, args.gateway, args.network_mask, args.dns1,
+                            args.dns2, args.proxy)
+        else:
+            print('Network security must be "psk" for a secured network.')
+            sys.exit(1)
 
     def delete_wifi(self):
         parser = argparse.ArgumentParser(
             description='Delete a wifi network.')
         parser.add_argument('ssid', help='SSID (name) of the wifi network.')
-        parser.add_argument('secured', help='Indicate if the network is a secure one.')
+        parser.add_argument('-s', '--security', help='The network security (psk).')
         args = parser.parse_args(sys.argv[2:])
-        print('Running command "dpmgr delete_wifi" with arguments {}'.format(args))
-        # TODO
+        if args.security:
+            self._dp_config.delete_wifi(args.ssid, args.security)
+        else:
+            self._dp_config.delete_wifi(args.ssid)
 
     def scan_wifi(self):
         parser = argparse.ArgumentParser(
             description='Scan the available wifi networks.')
-        print('Running command "dpmgr scan_wifi"')
-        # TODO
+        print('---Discovered wifi networks---')
+        pprint(self._dp_config.scan_wifi())
+
+    def list_wifi(self):
+        parser = argparse.ArgumentParser(
+            description='List all known wifi networks.')
+        print('---Known wifi networks---')
+        pprint(self._dp_config.list_wifi())
 
     def status(self):
+        parameterlist = ('storage_free', 'storage_total', 'battery_level', 'battery_pen',
+                'battery_health', 'battery_status', 'plugged', 'model', 'serial',
+                'firmware_version', 'mac_address')
         parser = argparse.ArgumentParser(
             description='Get the device status. \
                     Invoke without arguments to get a summary of \
                     the status with all known parameters.')
-        parser.add_argument('-g', '--get', metavar='par',
+        parser.add_argument('-p', '--parameter',
                 help='Get the value of a specific status parameter.')
         args = parser.parse_args(sys.argv[2:])
-        print('Running command "dpmgr status" with arguments {}'.format(args))
-        # TODO
+        if args.parameter:
+            if args.parameter not in parameterlist:
+                print('Parameter {} unknown.'.format(args.parameter))
+                sys.exit(1)
+            else:
+                val = getattr(self._dp_config, args.parameter)
+                if args.parameter.startswith('storage'):
+                    print('{}: {}'.format(args.parameter, self._sizeof_fmt(val)))
+                else:
+                    print('{}: {}'.format(args.parameter, val))
+        else:
+            print('---Current status---')
+            for par in parameterlist:
+                val = getattr(self._dp_config, par)
+                if par.startswith('storage'):
+                    print('{}: {}'.format(par, self._sizeof_fmt(val)))
+                else:
+                    print('{}: {}'.format(par, val))
+
+    def list_templates(self):
+        parser = argparse.ArgumentParser(
+            description='List all templates.')
+        print('---Templates---')
+        pprint(self._dp_config.templates)
+
+    def rename_template(self):
+        parser = argparse.ArgumentParser(
+            description='Rename a templates.')
+        parser.add_argument('oldname', help='The old name of the template.')
+        parser.add_argument('newname', help='The new name of the template.')
+        args = parser.parse_args(sys.argv[2:])
+        self._dp_config.rename_template(args.oldname, args.newname)
+
+    def add_template(self):
+        parser = argparse.ArgumentParser(
+            description='Add a templates.')
+        parser.add_argument('name', help='The name of the template.')
+        parser.add_argument('path', help='The local path to the pdf of the template.')
+        args = parser.parse_args(sys.argv[2:])
+        self._dp_config.add_template(args.name, args.path)
+
+    def delete_template(self):
+        parser = argparse.ArgumentParser(
+            description='Delete a templates.')
+        parser.add_argument('name', help='The name of the template.')
+        args = parser.parse_args(sys.argv[2:])
+        self._dp_config.delete_template(args.name)
+
+    def _sizeof_fmt(self, num, suffix='B'):
+        for unit in ['','k','M','G','T','P','E','Z']:
+            if abs(num) < 1024.0:
+                return '{:3.1f}{}{}'.format(num, unit, suffix)
+            num /= 1024.0
+        return '{:.1f}{}{}'.format(num, 'Y', suffix)
 
 
 if __name__ == '__main__':
