@@ -11,7 +11,7 @@ To install the library run `python3 setup.py install` or `pip3 install .` from
 the root directory. To install as a developer use `python3 setup.py develop`
 (see [the setuptools
 docs](http://setuptools.readthedocs.io/en/latest/setuptools.html#development-mode))
-and work on the source as usual. Not that the package has so far only be tested
+and work on the source as usual. Note that the package has so far only be tested
 on linux.
 
 
