@@ -38,18 +38,21 @@ class DPTRP1(object):
             usage='''dpmgr <command> [<args>]
 
 The dpmgr commands are:
-   upload      Upload files or directory contents to the digital paper device
-   download    Download files or directory contents from the digital paper device
-   tree        List documents and directories on the digital paper device in a tree
-   delete      Delete documents and directories on the digital paper device
-   mkdir       Create a new directory on the digital paper device
-   sync        Synchronize files or directory contents with the digital paper device
-   syncpairs   Synchronize pairs defined in the config file ~/.dpmgr/sync.conf
-   status      Check the device status
-   config      Manage the configuration of the device
-   add-wifi    Add a wifi network
-   delete-wifi Delete a wifi network
-   scan-wifi   Scan for the available wifi networks
+   upload               Upload files or directory contents to the digital paper device
+   download             Download files or directory contents from the digital paper device
+   tree                 List documents and directories on the digital paper device in a tree
+   delete               Delete documents and directories on the digital paper device
+   mkdir                Create a new directory on the digital paper device
+   sync                 Synchronize files or directory contents with the digital paper device
+   syncpairs            Synchronize pairs defined in the config file ~/.dpmgr/sync.conf
+   status               Check the device status
+   config               Manage the configuration of the device
+   add-wifi             Add a wifi network
+   delete-wifi          Delete a wifi network
+   scan-wifi            Scan for the available wifi networks
+   rename-template      Rename a template
+   upload-template      Upload a new template
+   delete-template      Delete a template
 
 Configuration files, id and key files are stored in ~/.dpmgr.
 ''')
@@ -218,8 +221,8 @@ Configuration files, id and key files are stored in ~/.dpmgr.
                 help='Get the value of a configuration parameter.')
         args = parser.parse_args(sys.argv[2:])
         print('Running command "dpmgr config" with arguments {}'.format(args))
-        # TODO
 
+    # TODO
     def add_wifi(self):
         parser = argparse.ArgumentParser(
             description='Add a wifi network.')

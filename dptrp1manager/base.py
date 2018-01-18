@@ -203,10 +203,6 @@ class DPManager(object):
         folder = self.get_node(folder)
         return folder.children
 
-    def get_standalone_notes(self):
-        folder = self.get_node('/Document/Note')
-        return folder.children
-
     def get_node(self, path):
         res = self._resolver.get(self._content_tree, path)
         return res
@@ -545,17 +541,6 @@ class Downloader(FileTransferHandler):
                     if f.isfile:
                         src_fp = osp.join(source, f.name)
                         self.download_file(src_fp, osp.join(dest, f.name), policy)
-
-    def download_standalone_notes(self, dest, policy='skip'):
-        """Download all notes.
-
-        """
-        src_files = self._dp_mgr.get_standalone_notes()
-        if self._local_path_ok(dest):
-            for f in src_files:
-                if f.isfile:
-                    src_fp = osp.join('/Document/Note', f.name)
-                    self.download_file(src_fp, osp.join(dest, f.name), policy)
 
     def download_recursively(self, source, dest, policy='skip'):
         """Download recursively.
