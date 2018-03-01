@@ -605,7 +605,7 @@ class Uploader(FileTransferHandler):
                 else:
                     if policy == 'local_wins':
                         # delete the old file
-                        self.dp.rm_file(dest)
+                        self._dp_mgr.rm_file(dest)
                         do_transfer = True
                     elif policy == 'remote_wins':
                         do_transfer = False
@@ -613,7 +613,7 @@ class Uploader(FileTransferHandler):
                     elif policy == 'newer':
                         if self._check_datetime(source, dest) == 'local_newer':
                             # delete the old file
-                            self.dp.rm_file(dest)
+                            self._dp_mgr.rm_file(dest)
                             do_transfer = True
                         else:
                             do_transfer = False
