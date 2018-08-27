@@ -354,8 +354,14 @@ class DPDataParser(object):
         res['is_new'] = bool(data['is_new'])
         res['mime_type'] = data['mime_type']
         res['parent_folder_id'] = data['parent_folder_id']
-        res['title'] = data['title']
-        res['author'] = self._splitauthors(data['author'])
+        if 'title' in data.keys():
+            res['title'] = data['title']
+        else:
+            res['title'] = 'not-defined'
+        if 'author' in data.keys():
+            res['author'] = self._splitauthors(data['author'])
+        else:
+            res['author'] = 'not-defined'
         res['entry_path'] = self._splitpath(data['entry_path'])
         res['created_date'] = self._string_to_datetime(data['created_date'])
         res['modified_date'] = self._string_to_datetime(data['modified_date'])
