@@ -23,7 +23,10 @@ import os
 import os.path as osp
 import datetime
 import configparser
+import subprocess
+import re
 
+import serial
 import anytree
 from dptrp1.dptrp1 import DigitalPaper
 from dptrp1manager import tools
@@ -82,7 +85,13 @@ class DPManager(object):
             self._config.write(f)
 
     def _get_ip(self, ip):
-        if ip == '':
+        # prefer usb
+        if self._is_usb_conneted():
+            print("Using ethernet over USB to connect.")
+            self._set_up_eth_usb()
+            # TODO: make this ip configurable!
+            ip = "fe80::b47f:46ff:fe5d:7741@enp0s20u14u3u1:8443"
+        elif ip == '':
             ip = self._config['IP']['default']
             ssids = tools.get_ssids()
             print('Network info: {}'.format(ssids))
@@ -95,6 +104,50 @@ class DPManager(object):
                         else:
                             print('No custom IP defined for network {}'.format(ssid))
         return ip
+
+    def _is_usb_conneted(self):
+        """use lsusb. **this is linux specific!**
+
+        """
+        res = False
+        device_re = re.compile("Bus\s+(?P<bus>\d+)\s+Device\s+(?P<device>\d+).+ID\s(?P<id>\w+:\w+)\s(?P<tag>.+)$", re.I)
+        df = str(subprocess.check_output("lsusb"), encoding="UTF8")
+        devices = []
+        for i in df.split('\n'):
+            if i:
+                info = device_re.match(i)
+                if info:
+                    dinfo = info.groupdict()
+                    dinfo['device'] = '/dev/bus/usb/%s/%s' % (dinfo.pop('bus'), dinfo.pop('device'))
+                    devices.append(dinfo)
+        for dev in devices:
+            if dev['tag'] == "Sony Corp. ":
+                res = True
+        return res
+
+    def _set_up_eth_usb(self):
+        """Set up ethernet usb functionality in linux.
+
+        See https://github.com/janten/dpt-rp1-py/blob/master/docs/linux-ethernet-over-usb.md
+
+        Notes
+        -----
+        The user must be in the group that own /dev/ttyACM0
+
+        """
+        # if configured the dptrp1 appears as a network adapter named "enp0s20u14u3u1"
+        if not "enp0s20u14u3u1" in os.listdir('/sys/class/net/'):
+            # use RNDIS mode
+            send_val = b"\x01\x00\x00\x01\x00\x00\x00\x01\x00\x04"
+
+            # use CDC/ECM mode
+            # send_val = b"\x01\x00\x00\x01\x00\x00\x00\x01\x01\x04"
+            try:
+                ser = serial.Serial('/dev/ttyACM0', 9600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
+                ser.write(send_val)
+            except serial.serialutil.SerialException:
+                ser = serial.Serial('/dev/ttyACM1', 9600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
+                ser.write(send_val)
 
     def _authenticate(self):
         with open(self._clientid_file, 'r') as f:
