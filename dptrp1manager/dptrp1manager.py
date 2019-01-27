@@ -35,6 +35,9 @@ from pprint import pprint
 
 CONFIGDIR = osp.join(osp.expanduser('~'), '.dpmgr')
 
+# on usb
+# dptrp1  --addr "[fe80::b47f:46ff:fe5d:7741%enp0s20f0u2]" list-documents
+
 class DPManager(object):
     """Main class to manage the DPT-RP1.
 
@@ -90,7 +93,7 @@ class DPManager(object):
             print("Using ethernet over USB to connect.")
             self._set_up_eth_usb()
             # TODO: make this ip configurable!
-            ip = "fe80::b47f:46ff:fe5d:7741@enp0s20u14u3u1:8443"
+            ip = "[fe80::b47f:46ff:fe5d:7741%enp0s20f0u2]"
         elif ip == '':
             ip = self._config['IP']['default']
             ssids = tools.get_ssids()
@@ -135,19 +138,20 @@ class DPManager(object):
         The user must be in the group that own /dev/ttyACM0
 
         """
-        # if configured the dptrp1 appears as a network adapter named "enp0s20u14u3u1"
-        if not "enp0s20u14u3u1" in os.listdir('/sys/class/net/'):
-            # use RNDIS mode
-            send_val = b"\x01\x00\x00\x01\x00\x00\x00\x01\x00\x04"
+        # use RNDIS mode
+        # send_val = b"\x01\x00\x00\x01\x00\x00\x00\x01\x00\x04"
 
-            # use CDC/ECM mode
-            # send_val = b"\x01\x00\x00\x01\x00\x00\x00\x01\x01\x04"
-            try:
-                ser = serial.Serial('/dev/ttyACM0', 9600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
-                ser.write(send_val)
-            except serial.serialutil.SerialException:
+        # use CDC/ECM mode
+        send_val = b"\x01\x00\x00\x01\x00\x00\x00\x01\x01\x04"
+        try:
+            ser = serial.Serial('/dev/ttyACM0', 9600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
+            ser.write(send_val)
+        except serial.serialutil.SerialException:
+            try: 
                 ser = serial.Serial('/dev/ttyACM1', 9600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
                 ser.write(send_val)
+            except:
+                pass
 
     def _authenticate(self):
         with open(self._clientid_file, 'r') as f:
