@@ -90,11 +90,11 @@ class DPManager(object):
     def _get_ip(self, ip):
         # prefer usb
         if self._is_usb_conneted():
-            print("Using ethernet over USB to connect.")
             self._set_up_eth_usb()
             ip_bare = self._config['USB']['ipv6']
             iface = self._config['USB']['interface']
             ip = "[{}%{}]".format(ip_bare, iface)
+            print("Using ethernet over USB with ip {} to connect.".format(ip))
         elif ip == '':
             ip = self._config['IP']['default']
             ssids = tools.get_ssids()
