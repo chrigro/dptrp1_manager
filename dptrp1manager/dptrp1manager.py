@@ -92,8 +92,7 @@ class DPManager(object):
         if self._is_usb_conneted():
             print("Using ethernet over USB to connect.")
             self._set_up_eth_usb()
-            # TODO: make this ip configurable!
-            ip = "[fe80::b47f:46ff:fe5d:7741%enp0s20f0u2]"
+            ip = self._config['IP']['usb']
         elif ip == '':
             ip = self._config['IP']['default']
             ssids = tools.get_ssids()
