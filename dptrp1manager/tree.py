@@ -5,26 +5,38 @@ import anytree
 
 
 class DPNode(anytree.NodeMixin):
-    """Representation of a node in the file system of the DPT-RP1.
+    """Representation of a general node in the file system of the DPT-RP1.
 
     Attributes
     ----------
-    name : string
+    entry_name : string
         The name of the node.
-    isfile : bool
-        Is the node representing a file? Otherwise it is a dir.
-    id : string
-        The unique id of the node
-    metadata : dict
-        Parsed file metadata as provided by DPT-RP1. For files see
-        DPDataParser, directories have only entry_path and entry_name as keys.
+    entry_type : string
+        type of the entry
+    entry_id : string
+        The unique id of the node. This is used to modify content on the dptrp1.
+    created_date : datetime.datetime
+        Date the entry was created
+    entry_path : string
+        Path to the entry
+    is_new : bool
+        Is the entry new?
 
     """
-    def __init__(self, name, isfile, metadata):
-        super(DPNode, self).__init__()
-        self.name = name
-        self.isfile = isfile
-        self.metadata = metadata
+    def __init__(self):
+        super().__init__()
+
+
+class DPFolderNode(DPNode):
+    def __init__(self):
+        super().__init__()
+
+
+class DPFileNode(DPNode):
+    def __init__(self):
+        super().__init__()
+
+
 
 class RemoteTree(object):
     """Representation of the files and folders on the dpt-rp1.
