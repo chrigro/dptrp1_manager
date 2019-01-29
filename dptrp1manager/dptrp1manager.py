@@ -30,6 +30,7 @@ import serial
 import anytree
 from dptrp1.dptrp1 import DigitalPaper
 from dptrp1manager import tools
+from dptrp1manager import tree
 
 from pprint import pprint
 
@@ -194,6 +195,14 @@ class DPManager(object):
 
     def _build_tree(self):
         data = self._get_all_contents()
+
+
+        # TEST
+
+        dpttree = tree.RemoteTree()
+        dpttree.rebuild_tree(data)
+
+
         added_dirnodes = []
         # first folders
         for entry in data:
