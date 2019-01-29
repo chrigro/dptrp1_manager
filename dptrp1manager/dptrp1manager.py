@@ -201,6 +201,8 @@ class DPManager(object):
 
         dpttree = tree.RemoteTree()
         dpttree.rebuild_tree(data)
+        for pre, _, node in anytree.render.RenderTree(dpttree._tree):
+            print("{}{}-{}".format(pre, node.entry_name, node.entry_id))
 
 
         added_dirnodes = []

@@ -31,7 +31,8 @@ class DPNode(anytree.NodeMixin):
     def __init__(
         self, parent, entry_path, entry_name, entry_type, entry_id, created_date, is_new
     ):
-        super().__init__(parent=parent)
+        super().__init__()
+        self.parent = parent
         self.entry_path = entry_path
         self.entry_name = entry_name
         self.entry_type = entry_type
@@ -190,7 +191,7 @@ class RemoteTree(object):
             curpath = "{}/{}".format(lastpath, d)
             if self._get_node_by_path(curpath) is None:
                 parent = self._get_node_by_path(lastpath)
-                self._tree.DPFolderNode(
+                DPFolderNode(
                     parent=parent,
                     entry_path=curpath,
                     entry_name=None,
@@ -212,7 +213,7 @@ class RemoteTree(object):
         if data["entry_type"] == "folder":
             node = self._get_node_by_path(data["entry_path"])
             if node is None:
-                self._tree.DPFolderNode(
+                DPFolderNode(
                     parent=parent,
                     entry_path=data["entry_path"],
                     entry_name=data["entry_name"],
@@ -220,7 +221,7 @@ class RemoteTree(object):
                     entry_id=data["entry_id"],
                     created_date=data["created_date"],
                     is_new=data["is_new"],
-                    document_source=data["document_source"],
+                    document_source=data.get("document_source", None),
                     parent_folder_id=data["parent_folder_id"],
                 )
             else:
@@ -230,10 +231,10 @@ class RemoteTree(object):
                 node.entry_id = data["entry_id"]
                 node.created_date = node.todatetime(data["created_date"])
                 node.is_new = bool(data["is_new"])
-                node.document_source = data["document_source"]
+                node.document_source = data.get("document_source", None)
                 node.parent_folder_id = data["parent_folder_id"]
         elif data["entry_type"] == "document":
-            self._tree.DPDocumentNode(
+            DPDocumentNode(
                 parent=parent,
                 entry_path=data["entry_path"],
                 entry_name=data["entry_name"],
@@ -256,7 +257,8 @@ class RemoteTree(object):
         """Get a tree node by its path.
 
         """
-        return anytree.search.find_by_attr(self._tree.root, "entry_path", path)
+        res = anytree.search.find_by_attr(self._tree.root, value=path, name='entry_path')
+        return res
 
 
 ## A file
