@@ -5,6 +5,7 @@ from datetime import datetime
 
 import anytree
 
+import time
 
 class DPNode(anytree.NodeMixin):
     """Representation of a general node in the file system of the DPT-RP1.
@@ -157,9 +158,11 @@ class RemoteTree(object):
 
     def __init__(self):
         self._tree = None
+        self._resolver = None
 
     def rebuild_tree(self, jsondata):
         self._tree = self._create_tree_root()
+        self._resolver = anytree.resolver.Resolver("entry_name")
         for data in jsondata:
             self._create_path(data["entry_path"])
             self._create_update_node(data)
@@ -189,8 +192,8 @@ class RemoteTree(object):
         lastpath = "{}".format(splpath[0])
         for d in splpath[1:-1]:
             curpath = "{}/{}".format(lastpath, d)
-            if self._get_node_by_path(curpath) is None:
-                parent = self._get_node_by_path(lastpath)
+            if self.get_node_by_path(curpath) is None:
+                parent = self.get_node_by_path(lastpath)
                 DPFolderNode(
                     parent=parent,
                     entry_path=curpath,
@@ -209,9 +212,9 @@ class RemoteTree(object):
 
         """
         parentpath = data["entry_path"].rsplit("/", 1)[0]
-        parent = self._get_node_by_path(parentpath)
+        parent = self.get_node_by_path(parentpath)
         if data["entry_type"] == "folder":
-            node = self._get_node_by_path(data["entry_path"])
+            node = self.get_node_by_path(data["entry_path"])
             if node is None:
                 DPFolderNode(
                     parent=parent,
@@ -253,11 +256,14 @@ class RemoteTree(object):
                 total_page=data["total_page"],
             )
 
-    def _get_node_by_path(self, path):
+    def get_node_by_path(self, path):
         """Get a tree node by its path.
 
         """
-        res = anytree.search.find_by_attr(self._tree.root, value=path, name='entry_path')
+        try:
+            res = self._resolver.get(self._tree.root, "/{}".format(path))
+        except anytree.resolver.ChildResolverError:
+            res = None
         return res
 
 

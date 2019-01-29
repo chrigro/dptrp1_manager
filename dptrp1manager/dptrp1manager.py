@@ -29,7 +29,7 @@ import re
 import serial
 import anytree
 from dptrp1.dptrp1 import DigitalPaper
-from dptrp1manager import tools
+from dptrp1manager import tools, tree, dptrp1
 from dptrp1manager import tree
 
 from pprint import pprint
@@ -63,14 +63,14 @@ class DPManager(object):
         self._checkconfigfile()
         addr = self._get_ip(ip)
         print('Attempting connection to ip {}'.format(addr))
-        self.dp = DigitalPaper(addr)
+        self.dp = dptrp1.MyDigitalPaper(addr)
         if self.dp is None:
             sys.exit(1)
         self._key_file = osp.join(CONFIGDIR, 'dptrp1_key')
         self._clientid_file = osp.join(CONFIGDIR, 'dptrp1_id')
         self._dataparser = DPDataParser()
         self._resolver = anytree.resolver.Resolver('name')
-        self._content_tree = None
+        self._remote_tree = None
 
         self._check_registered(register)
         self._authenticate()
@@ -195,62 +195,25 @@ class DPManager(object):
 
     def _build_tree(self):
         data = self._get_all_contents()
-
-
-        # TEST
-
-        dpttree = tree.RemoteTree()
-        dpttree.rebuild_tree(data)
-        for pre, _, node in anytree.render.RenderTree(dpttree._tree):
-            print("{}{}-{}".format(pre, node.entry_name, node.entry_id))
-
-
-        added_dirnodes = []
-        # first folders
-        for entry in data:
-            if entry['entry_type'] == 'folder':
-                md = self._dataparser.parsefolder(entry)
-                pathlist = md['entry_path']
-                for depth, subpath in enumerate(pathlist):
-                    fullname = '/' + '/'.join(pathlist[:depth + 1])
-                    parent_fullname = '/' + '/'.join(pathlist[:depth])
-                    if self._content_tree is None and parent_fullname == '/':
-                        n = DPNode(name=subpath, isfile=False, metadata={'entry_path': pathlist[:depth + 1],
-                            'entry_name': subpath})
-                        self._content_tree = n
-                    elif not parent_fullname == '/':
-                        if not fullname in added_dirnodes:
-                            parent = self.get_node(parent_fullname)
-                            n = DPNode(name=subpath, isfile=False, metadata={'entry_path': pathlist[:depth + 1],
-                                'entry_name': subpath})
-                            n.parent = parent
-                            added_dirnodes.append(fullname)
-        # now files
-        for entry in data:
-            if entry['entry_type'] == 'document':
-                md = self._dataparser.parsefile(entry)
-                pathlist = md['entry_path']
-                filenode = DPNode(name=md['entry_name'], isfile=True, metadata=md)
-                parent_fullname = '/' + '/'.join(pathlist[:-1])
-                parent = self.get_node(parent_fullname)
-                filenode.parent = parent
+        self._remote_tree = tree.RemoteTree()
+        self._remote_tree.rebuild_tree(data)
 
     def rebuild_tree(self):
         """Rebuild the local tree.
 
         """
-        self._content_tree = None
+        self._remote_tree = None
         self._build_tree()
 
     def print_full_tree(self):
-        for pre, _, node in anytree.render.RenderTree(self._content_tree):
+        for pre, _, node in anytree.render.RenderTree(self._remote_tree):
             print("{}{}".format(pre, node.name))
 
     def print_dir_tree(self, path):
         if self.node_name_ok(path) and self.node_exists(path, print_error=False):
             for pre, _, node in anytree.render.RenderTree(self.get_node(path)):
-                if not node.isfile:
-                    print("{}{}".format(pre, node.name))
+                if not isinstance(node, DPDocumentNode):
+                    print("{}{}".format(pre, node.entry_name))
 
     def _sizeof_fmt(self, num, suffix='B'):
         for unit in ['','k','M','G','T','P','E','Z']:
@@ -262,35 +225,31 @@ class DPManager(object):
     def print_folder_contents(self, path):
         if self.node_name_ok(path) and self.node_exists(path, print_error=False):
             for pre, _, node in anytree.render.RenderTree(self.get_node(path)):
-                if node.isfile:
-                    size = node.metadata['file_size']
-                    print("{}[{}] {}".format(pre, self._sizeof_fmt(size), node.name))
+                if isinstance(node, DPDocumentNode):
+                    print("{}[{}] {}".format(pre, self._sizeof_fmt(node.file_size), node.entry_name))
                 else:
-                    print("{}{}".format(pre, node.name))
+                    print("{}{}".format(pre, node.entry_name))
 
     def get_folder_contents(self, folder):
         folder = self.get_node(folder)
         return folder.children
 
     def get_node(self, path):
-        res = self._resolver.get(self._content_tree, path)
+        res = self._remote_tree.get_node_by_path(path)
         return res
 
     def node_exists(self, path, print_error=True):
         """Check if a node exists on the DPT-RP1.
 
         """
-        try:
-            self.get_node(path)
+        if self.get_node(path) is not None:
             return True
-        except anytree.resolver.ResolverError:
-            if print_error:
-                print('ERROR: DPT-RP1 file or folder {} does not exist'.format(path))
+        else:
             return False
 
     def node_name_ok(self, name):
-        if not name.startswith('/Document'):
-            print('ERROR: DPT-RP1 file or folder name must start with "/Document"')
+        if not name.startswith('Document'):
+            print('ERROR: DPT-RP1 file or folder name must start with "Document"')
             return False
         else:
             return True
