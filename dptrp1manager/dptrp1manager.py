@@ -68,7 +68,6 @@ class DPManager(object):
             sys.exit(1)
         self._key_file = osp.join(CONFIGDIR, 'dptrp1_key')
         self._clientid_file = osp.join(CONFIGDIR, 'dptrp1_id')
-        self._dataparser = DPDataParser()
         self._resolver = anytree.resolver.Resolver('name')
         self._remote_tree = None
 
@@ -207,7 +206,7 @@ class DPManager(object):
 
     def print_full_tree(self):
         for pre, _, node in anytree.render.RenderTree(self._remote_tree):
-            print("{}{}".format(pre, node.name))
+            print("{}{}".format(pre, node.entry_name))
 
     def print_dir_tree(self, path):
         if self.node_name_ok(path) and self.node_exists(path, print_error=False):
@@ -268,11 +267,13 @@ class DPManager(object):
         """
         if path.endswith('/'):
             path = path[:-1]
+        parent_folder, new_folder = path.rsplit('/', maxsplit=1)
         if (self.node_name_ok(path) and
-                self.node_exists(path.rsplit('/', maxsplit=1)[0])):
+                self.node_exists(parent_folder)):
             if not self.node_exists(path, print_error=False):
                 print('Creating folder {}'.format(path))
-                self.dp.new_folder(path[1:])
+                parent_folder_id = self.get_node(parent_folder).entry_id
+                self.dp.new_folder_byid(parent_folder_id, new_folder)
             else:
                 print('ERROR: DPT-RP1 has already a folder {}'.format(path))
 
@@ -284,7 +285,11 @@ class DPManager(object):
             path = path[:-1]
         if (self.node_name_ok(path) and self.node_exists(path)):
             print('Deleting dir {}.'.format(path))
-            self.dp.delete_directory(path[1:])
+            dir_id = self.get_node(path).entry_id
+            self._rm_dir(dir_id)
+
+    def _rm_dir(self, dir_id):
+        self.dp.delete_directory_byid(dir_id)
 
     def rm_file(self, path):
         """Delete a file on the DPT-RP1.
@@ -292,7 +297,11 @@ class DPManager(object):
         """
         if (self.node_name_ok(path) and self.node_exists(path)):
             print('Deleting file {}.'.format(path))
-            self.dp.delete_document(path[1:])
+            file_id = self.get_node(path).entry_id
+            self._rm_file(file_id)
+
+    def _rm_file(self, file_id):
+        self.dp.delete_directory_byid(dir_id)
 
     def rm(self, path):
         """Delete a file or (empty) directory.
@@ -300,7 +309,7 @@ class DPManager(object):
         """
         if (self.node_name_ok(path) and self.node_exists(path)):
             n = self.get_node(path)
-            if n.isfile == True:
+            if isinstance(n, DPDocumentNode):
                 self.rm_file(path)
             else:
                 self.rm_dir(path)
@@ -313,10 +322,8 @@ class DPManager(object):
         if (self.node_name_ok(path) and self.node_exists(path)):
             files = self.get_folder_contents(path)
             for f in files:
-                if f.isfile:
-                    pathlist = f.metadata['entry_path']
-                    remote_path = '/' + '/'.join(pathlist[:])
-                    self.rm_file(remote_path)
+                if isinstance(f, DPDocumentNode):
+                    self.rm_file(f.entry_path)
 
     def rm_allfiles_recursively(self, path):
         """Delete all files and folders in a directory on the DPT-RP1. Do not
@@ -326,135 +333,11 @@ class DPManager(object):
         if (self.node_name_ok(path) and self.node_exists(path)):
             files = self.get_folder_contents(path)
             for f in files:
-                if f.isfile:
-                    pathlist = f.metadata['entry_path']
-                    remote_path = '/' + '/'.join(pathlist[:])
-                    self.rm_file(remote_path)
+                if isinstance(f, DPDocumentNode):
+                    self.rm_file(f.entry_path)
                 else:
-                    pathlist = f.metadata['entry_path']
-                    new_path = '/' + '/'.join(pathlist[:])
-                    self.rm_allfiles_recursively(new_path)
-                    self.rm_dir(new_path)
-
-
-class DPDataParser(object):
-    """Parser for the data returned for each document.
-
-    """
-    def __init__(self):
-        super(DPDataParser, self).__init__()
-
-    def parsefile(self, data):
-        """Parse the entry data for files.
-
-        Returns
-        -------
-        dict
-            Parsed metadata dictionary. It has the following structure:
-            'current_page': int
-            'total_page': int
-            'document_type': 'normal' or 'note'
-            'entry_id': string
-            'entry_name': string (file name)
-            'entry_type': 'document'
-            'file_revision': string
-            'file_size': int (size in bytes)
-            'is_new': bool
-            'mime_type': 'application/pdf',
-            'parent_folder_id': string
-            'title': string
-            'author': list of strings
-            'entry_path': list of strings (full path)
-            'created_date': datetime
-            'modified_date': datetime
-
-        """
-        res = {}
-        # some keys are easy to parse
-        res['current_page'] = int(data['current_page'])
-        res['total_page'] = int(data['total_page'])
-        res['document_type'] = data['document_type']
-        res['entry_id'] = data['entry_id']
-        res['entry_name'] = data['entry_name']
-        res['entry_type'] = data['entry_type']
-        res['file_revision'] = data['file_revision']
-        res['file_size'] = int(data['file_size'])
-        res['is_new'] = bool(data['is_new'])
-        res['mime_type'] = data['mime_type']
-        res['parent_folder_id'] = data['parent_folder_id']
-        if 'title' in data.keys():
-            res['title'] = data['title']
-        else:
-            res['title'] = 'not-defined'
-        if 'author' in data.keys():
-            res['author'] = self._splitauthors(data['author'])
-        else:
-            res['author'] = 'not-defined'
-        res['entry_path'] = self._splitpath(data['entry_path'])
-        res['created_date'] = self._string_to_datetime(data['created_date'])
-        res['modified_date'] = self._string_to_datetime(data['modified_date'])
-        return res
-
-    def parsefolder(self, data):
-        """Parse the entry data for folders.
-
-        Returns
-        -------
-        dict
-            Parsed metadata dictionary. It has the following structure:
-            'entry_id': string
-            'entry_name': string (folder name)
-            'entry_type': 'folder'
-            'is_new': bool
-            'parent_folder_id': string
-            'entry_path': list of strings (full path)
-            'created_date': datetime
-
-        """
-        res = {}
-        # some keys are easy to parse
-        res['entry_id'] = data['entry_id']
-        res['entry_name'] = data['entry_name']
-        res['entry_type'] = data['entry_type']
-        res['is_new'] = bool(data['is_new'])
-        res['parent_folder_id'] = data['parent_folder_id']
-        res['entry_path'] = self._splitpath(data['entry_path'])
-        res['created_date'] = self._string_to_datetime(data['created_date'])
-        return res
-
-    def _string_to_datetime(self, string):
-        dt = datetime.datetime.strptime(string, '%Y-%m-%dT%H:%M:%SZ')
-        return dt
-
-    def _splitpath(self, string):
-        path = osp.normpath(string)
-        return path.split(os.sep)
-
-    def _splitauthors(self, string):
-        authlist = [s.strip() for s in string.split(';')]
-        return authlist
-
-
-
-class DPNode(anytree.NodeMixin):
-    """Representation of a node in the file system of the DPT-RP1.
-
-    Attributes
-    ----------
-    name : string
-        The name of the node.
-    isfile : bool
-        Is the node representing a file? Otherwise it is a dir.
-    metadata : dict
-        Parsed file metadata as provided by DPT-RP1. For files see
-        DPDataParser, directories have only entry_path and entry_name as keys.
-
-    """
-    def __init__(self, name, isfile, metadata):
-        super(DPNode, self).__init__()
-        self.name = name
-        self.isfile = isfile
-        self.metadata = metadata
+                    self.rm_allfiles_recursively(f.entry_path)
+                    self.rm_dir(f.entry_path)
 
 
 class FileTransferHandler(object):
@@ -475,7 +358,7 @@ class FileTransferHandler(object):
         For now we just check for the size
 
         """
-        remote_size = self._dp_mgr.get_node(remote).metadata['file_size']
+        remote_size = self._dp_mgr.get_node(remote).file_size
         local_size = osp.getsize(local)
         if remote_size == local_size:
             return True
@@ -486,7 +369,7 @@ class FileTransferHandler(object):
         """Check if the local or remote file is newer.
 
         """
-        remote_time = self._dp_mgr.get_node(remote).metadata['modified_date']
+        remote_time = self._dp_mgr.get_node(remote).modified_date
         local_time = datetime.datetime.fromtimestamp(osp.getmtime(local))
         print('{}: {}'.format(remote,remote_time))
         print('{}: {}'.format(local,local_time))
@@ -533,11 +416,12 @@ class Downloader(FileTransferHandler):
 
         """
         dest = osp.expanduser(dest)
+        source_node = self._dp_mgr.get_node(source)
         if (self._check_policy(policy) and
                 self._dp_mgr.node_name_ok(source) and
                 self._dp_mgr.node_exists(source) and
                 self._local_path_ok(osp.dirname(dest)) and
-                self._dp_mgr.get_node(source).isfile):
+                isinstance(source_node, DPDocumentNode)):
             do_transfer = True
             if osp.exists(dest):
                 if self._is_equal(dest, source):
@@ -560,7 +444,7 @@ class Downloader(FileTransferHandler):
                         print('SKIP: Skipping download of {}'.format(osp.basename(source)))
             if do_transfer:
                 print('Downloading {}'.format(source))
-                data = self._dp_mgr.dp.download(source[1:])
+                data = self._dp_mgr.dp.download_byid(source_node.entry_id)
                 with open(dest, 'wb') as f:
                     f.write(data)
         else:
@@ -577,9 +461,8 @@ class Downloader(FileTransferHandler):
             src_files = self._dp_mgr.get_folder_contents(source)
             if self._local_path_ok(dest):
                 for f in src_files:
-                    if f.isfile:
-                        src_fp = osp.join(source, f.name)
-                        self.download_file(src_fp, osp.join(dest, f.name), policy)
+                    if isinstance(f, DPDocumentNode):
+                        self.download_file(f.entry_path, osp.join(dest, f.entry_name), policy)
 
     def download_recursively(self, source, dest, policy='skip'):
         """Download recursively.
@@ -593,16 +476,13 @@ class Downloader(FileTransferHandler):
                 self._dp_mgr.node_exists(source)):
             src_nodes = self._dp_mgr.get_folder_contents(source)
             for f in src_nodes:
-                if f.isfile:
-                    src_fp = osp.join(source, f.name)
-                    self.download_file(src_fp, osp.join(dest, f.name), policy)
+                if isinstance(f, DPDocumentNode):
+                    self.download_file(f.entry_path, osp.join(dest, f.entry_name), policy)
                 else:
-                    new_local_path = osp.join(dest, f.name)
-                    pathlist = f.metadata['entry_path']
-                    new_remote_path = '/' + '/'.join(pathlist[:])
+                    new_local_path = osp.join(dest, f.entry_name)
                     if not self._local_path_ok(new_local_path, printerr=False):
                         os.mkdir(new_local_path)
-                    self.download_recursively(new_remote_path, new_local_path, policy)
+                    self.download_recursively(f.entry_path, new_local_path, policy)
 
 
 class Uploader(FileTransferHandler):
@@ -626,9 +506,10 @@ class Uploader(FileTransferHandler):
 
         """
         source = osp.expanduser(source)
+        dest_dir, dest_fn = dest.rsplit('/', maxsplit=1)
         if (self._check_policy(policy) and
                 self._dp_mgr.node_name_ok(dest) and
-                self._dp_mgr.node_exists(dest.rsplit('/', maxsplit=1)[0]) and
+                self._dp_mgr.node_exists(dest_dir) and
                 self._local_path_ok(source) and
                 self._dp_mgr.file_name_ok(dest)):
             do_transfer = True
@@ -658,7 +539,8 @@ class Uploader(FileTransferHandler):
             if do_transfer:
                 print('Adding file {}'.format(dest))
                 with open(source, 'rb') as f:
-                    self._dp_mgr.dp.upload(f, dest[1:])
+                    dest_dir_node = self._dp_mgr.get_node(dest_dir)
+                    self._dp_mgr.dp.upload_byid(f, dest_dir_node.entry_id, dest_fn)
 
     def upload_folder_contents(self, source, dest, policy='skip'):
         """Upload a full folder to the DPT-RP1.

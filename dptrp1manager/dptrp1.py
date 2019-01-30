@@ -23,6 +23,18 @@ class MyDigitalPaper(DigitalPaper):
         url = "/documents/{remote_id}".format(remote_id = remote_id)
         self._delete_endpoint(url)
 
+    def delete_directory_byid(self, dir_id):
+        nnodes = self.get_directory_contents_byid(dir_id)["count"]
+        if nnodes == 0:
+            self._delete_endpoint('/folders/{}'.format(dir_id))
+        else:
+            else:
+                print('ERROR: Remote directory not empty. Cannot delete it.')
+
+    def get_directory_contents_byid(self, dir_id):
+        data = self._get_endpoint('/folders/{}/entries2'.format(dir_id)).json()
+        return data
+
     def upload_byid(self, fh, directory_id, remote_filename):
         info = {
             "file_name": remote_filename,
