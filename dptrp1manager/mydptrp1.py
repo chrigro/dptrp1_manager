@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import requests
+from urllib.parse import quote_plus
+
 from dptrp1.dptrp1 import DigitalPaper
 
 class MyDigitalPaper(DigitalPaper):

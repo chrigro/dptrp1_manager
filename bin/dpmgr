@@ -23,16 +23,16 @@ import sys
 import os
 from pprint import pprint
 
-import dptrp1manager
+from dptrp1manager import dptman
 
 class DPTRP1(object):
 
     def __init__(self):
-        self._dp_mgr = dptrp1manager.DPManager()
-        self._dp_config = dptrp1manager.DPConfig(self._dp_mgr)
-        self._dp_downloader = dptrp1manager.Downloader(self._dp_mgr)
-        self._dp_uploader = dptrp1manager.Uploader(self._dp_mgr)
-        self._dp_synchronizer = dptrp1manager.Synchronizer(self._dp_mgr)
+        self._dp_mgr = dptman.DPManager()
+        self._dp_config = dptman.DPConfig(self._dp_mgr)
+        self._dp_downloader = dptman.Downloader(self._dp_mgr)
+        self._dp_uploader = dptman.Uploader(self._dp_mgr)
+        self._dp_synchronizer = dptman.Synchronizer(self._dp_mgr)
         # command line parser
         parser = argparse.ArgumentParser(
             description='Command line manager for the Sony DPT-RP1',

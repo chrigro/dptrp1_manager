@@ -197,7 +197,7 @@ class RemoteTree(object):
                 DPFolderNode(
                     parent=parent,
                     entry_path=curpath,
-                    entry_name=None,
+                    entry_name=d,
                     entry_type=None,
                     entry_id=None,
                     created_date=None,
@@ -229,7 +229,6 @@ class RemoteTree(object):
                 )
             else:
                 # add node data
-                node.entry_name = data["entry_name"]
                 node.entry_type = data["entry_type"]
                 node.entry_id = data["entry_id"]
                 node.created_date = node.todatetime(data["created_date"])
@@ -261,7 +260,8 @@ class RemoteTree(object):
 
         """
         try:
-            res = self._resolver.get(self._tree.root, "/{}".format(path))
+            searchpath = "/{}".format(path)
+            res = self._resolver.get(self._tree.root, searchpath)
         except anytree.resolver.ChildResolverError:
             res = None
         return res
