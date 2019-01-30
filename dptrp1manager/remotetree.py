@@ -7,6 +7,7 @@ import anytree
 
 import time
 
+
 class DPNode(anytree.NodeMixin):
     """Representation of a general node in the file system of the DPT-RP1.
 
@@ -255,6 +256,34 @@ class RemoteTree(object):
                 total_page=data["total_page"],
             )
 
+    def printtree(self, foldersonly):
+        for pre, _, node in anytree.render.RenderTree(self._tree):
+            if not foldersonly:
+                print("{}{}".format(pre, node.entry_name))
+            else:
+                if not isinstance(node, DPDocumentNode):
+                    print("{}{}".format(pre, node.entry_name))
+
+    def print_folder_contents(self, path):
+        foldernode = self.get_node_by_path(path)
+        if foldernode is not None:
+            for pre, _, node in anytree.render.RenderTree(foldernode):
+                if isinstance(node, DPDocumentNode):
+                    print(
+                        "{0}[{1: <7}][{2:}] {3}".format(
+                            pre, self._sizeof_fmt(node.file_size), node.modified_date, node.entry_name
+                        )
+                    )
+                else:
+                    print("{}{}".format(pre, node.entry_name))
+
+    def _sizeof_fmt(self, num, suffix="B"):
+        for unit in ["", "k", "M", "G", "T", "P", "E", "Z"]:
+            if abs(num) < 1024.0:
+                return "{:3.1f}{}{}".format(num, unit, suffix)
+            num /= 1024.0
+        return "{:.1f}{}{}".format(num, "Y", suffix)
+
     def get_node_by_path(self, path):
         """Get a tree node by its path.
 
@@ -265,43 +294,3 @@ class RemoteTree(object):
         except anytree.resolver.ChildResolverError:
             res = None
         return res
-
-
-## A file
-# {'author': 'lsr',
-# 'created_date': '2017-12-14T13:55:00Z',
-# 'current_page': '1',
-# 'document_type': 'normal',
-# 'entry_id': 'f1d09cac-1832-48b7-b060-4d39cbc0e582',
-# 'entry_name': 'book-majlis-2000-majlis2000-the_quant_theor_of_magne.pdf',
-# 'entry_path': 'Document/Reader/books/solid_state/book-majlis-2000-majlis2000-the_quant_theor_of_magne.pdf',
-# 'entry_type': 'document',
-# 'file_revision': '05873ef2024a.1.0',
-# 'file_size': '19093553',
-# 'is_new': 'true',
-# 'mime_type': 'application/pdf',
-# 'modified_date': '2017-12-14T13:55:00Z',
-# 'parent_folder_id': 'c9f9cde4-f12f-4285-a42c-7b38206581ca',
-# 'title': 'Print The Quantum Theory of Magnetism.tif (150 '
-#          'pages)',
-# 'total_page': '436'},
-#
-#
-## A Folder
-# {'created_date': '2018-10-06T07:38:12Z',
-# 'document_source': '2ae5e78c-8766-416b-baf6-ba3e1be3ab02',
-# 'entry_id': '6dd5f5a9-4136-4591-960a-c7f04d129f45',
-# 'entry_name': 'paper',
-# 'entry_path': 'Document/Reader/projects/macrodimers/paper',
-# 'entry_type': 'folder',
-# 'is_new': 'false',
-# 'parent_folder_id': '9d9eced8-18be-4b82-b9d3-5a9ebddfe8dc'},
-#
-#
-## Root (Document)
-# {'created_date': '2017-12-12T13:53:50Z',
-# 'entry_id': 'root',
-# 'entry_name': 'Document',
-# 'entry_path': 'Document',
-# 'entry_type': 'folder',
-# 'is_new': 'false'}

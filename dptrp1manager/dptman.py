@@ -28,7 +28,7 @@ import re
 
 import serial
 import anytree
-from dptrp1manager import tools, tree, mydptrp1
+from dptrp1manager import tools, remotetree, mydptrp1
 
 from pprint import pprint
 
@@ -192,7 +192,7 @@ class DPManager(object):
 
     def _build_tree(self):
         data = self._get_all_contents()
-        self._remote_tree = tree.RemoteTree()
+        self._remote_tree = remotetree.RemoteTree()
         self._remote_tree.rebuild_tree(data)
 
     def rebuild_tree(self):
@@ -203,29 +203,13 @@ class DPManager(object):
         self._build_tree()
 
     def print_full_tree(self):
-        for pre, _, node in anytree.render.RenderTree(self._remote_tree._tree):
-            print("{}{}".format(pre, node.entry_name))
+        self._remote_tree.printtree(foldersonly=False)
 
-    def print_dir_tree(self, path):
-        if self.node_name_ok(path) and self.node_exists(path, print_error=False):
-            for pre, _, node in anytree.render.RenderTree(self.get_node(path)):
-                if not isinstance(node, tree.DPDocumentNode):
-                    print("{}{}".format(pre, node.entry_name))
-
-    def _sizeof_fmt(self, num, suffix='B'):
-        for unit in ['','k','M','G','T','P','E','Z']:
-            if abs(num) < 1024.0:
-                return '{:3.1f}{}{}'.format(num, unit, suffix)
-            num /= 1024.0
-        return '{:.1f}{}{}'.format(num, 'Y', suffix)
+    def print_dir_tree(self):
+        self._remote_tree.printtree(foldersonly=True)
 
     def print_folder_contents(self, path):
-        if self.node_name_ok(path) and self.node_exists(path, print_error=False):
-            for pre, _, node in anytree.render.RenderTree(self.get_node(path)):
-                if isinstance(node, tree.DPDocumentNode):
-                    print("{}[{}] {}".format(pre, self._sizeof_fmt(node.file_size), node.entry_name))
-                else:
-                    print("{}{}".format(pre, node.entry_name))
+        self._remote_tree.print_folder_contents(path)
 
     def get_folder_contents(self, folder):
         folder = self.get_node(folder)
@@ -307,7 +291,7 @@ class DPManager(object):
         """
         if (self.node_name_ok(path) and self.node_exists(path)):
             n = self.get_node(path)
-            if isinstance(n, tree.DPDocumentNode):
+            if isinstance(n, remotetree.DPDocumentNode):
                 self.rm_file(path)
             else:
                 self.rm_dir(path)
@@ -320,7 +304,7 @@ class DPManager(object):
         if (self.node_name_ok(path) and self.node_exists(path)):
             files = self.get_folder_contents(path)
             for f in files:
-                if isinstance(f, tree.DPDocumentNode):
+                if isinstance(f, remotetree.DPDocumentNode):
                     self.rm_file(f.entry_path)
 
     def rm_allfiles_recursively(self, path):
@@ -331,7 +315,7 @@ class DPManager(object):
         if (self.node_name_ok(path) and self.node_exists(path)):
             files = self.get_folder_contents(path)
             for f in files:
-                if isinstance(f, tree.DPDocumentNode):
+                if isinstance(f, remotetree.DPDocumentNode):
                     self.rm_file(f.entry_path)
                 else:
                     self.rm_allfiles_recursively(f.entry_path)
@@ -419,7 +403,7 @@ class Downloader(FileTransferHandler):
                 self._dp_mgr.node_name_ok(source) and
                 self._dp_mgr.node_exists(source) and
                 self._local_path_ok(osp.dirname(dest)) and
-                isinstance(source_node, tree.DPDocumentNode)):
+                isinstance(source_node, remotetree.DPDocumentNode)):
             do_transfer = True
             if osp.exists(dest):
                 if self._is_equal(dest, source):
@@ -459,7 +443,7 @@ class Downloader(FileTransferHandler):
             src_files = self._dp_mgr.get_folder_contents(source)
             if self._local_path_ok(dest):
                 for f in src_files:
-                    if isinstance(f, tree.DPDocumentNode):
+                    if isinstance(f, remotetree.DPDocumentNode):
                         self.download_file(f.entry_path, osp.join(dest, f.entry_name), policy)
 
     def download_recursively(self, source, dest, policy='skip'):
@@ -474,7 +458,7 @@ class Downloader(FileTransferHandler):
                 self._dp_mgr.node_exists(source)):
             src_nodes = self._dp_mgr.get_folder_contents(source)
             for f in src_nodes:
-                if isinstance(f, tree.DPDocumentNode):
+                if isinstance(f, remotetree.DPDocumentNode):
                     self.download_file(f.entry_path, osp.join(dest, f.entry_name), policy)
                 else:
                     new_local_path = osp.join(dest, f.entry_name)
@@ -904,7 +888,7 @@ def main():
     # print(config.wifi_enabled)
 
     # dp_mgr.print_full_tree()
-    # dp_mgr.print_dir_tree("Document")
+    # dp_mgr.print_dir_tree()
     # dp_mgr.print_folder_contents('Document/Reader/projects')
 
     # synchronizer.sync_folder(local='~/Reader/projects', remote='Document/Reader/projects', policy='remote_wins')
