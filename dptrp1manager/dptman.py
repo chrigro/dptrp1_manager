@@ -245,10 +245,10 @@ class DPManager(object):
         self._build_tree()
 
     def print_full_tree(self):
-        self._remote_tree.printtree(foldersonly=False)
+        self._remote_tree.printtree(path, foldersonly=False)
 
-    def print_dir_tree(self):
-        self._remote_tree.printtree(foldersonly=True)
+    def print_dir_tree(self, path):
+        self._remote_tree.printtree(path, foldersonly=True)
 
     def print_folder_contents(self, path):
         self._remote_tree.print_folder_contents(path)

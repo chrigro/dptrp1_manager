@@ -256,13 +256,15 @@ class RemoteTree(object):
                 total_page=data["total_page"],
             )
 
-    def printtree(self, foldersonly):
-        for pre, _, node in anytree.render.RenderTree(self._tree):
-            if not foldersonly:
-                print("{}{}".format(pre, node.entry_name))
-            else:
-                if not isinstance(node, DPDocumentNode):
+    def printtree(self, path, foldersonly):
+        foldernode = self.get_node_by_path(path)
+        if foldernode is not None:
+            for pre, _, node in anytree.render.RenderTree(foldernode):
+                if not foldersonly:
                     print("{}{}".format(pre, node.entry_name))
+                else:
+                    if not isinstance(node, DPDocumentNode):
+                        print("{}{}".format(pre, node.entry_name))
 
     def print_folder_contents(self, path):
         foldernode = self.get_node_by_path(path)
