@@ -248,9 +248,11 @@ class DPManager(object):
         self._remote_tree.printtree(path, foldersonly=False)
 
     def print_dir_tree(self, path):
+        path = self.fix_path(path)
         self._remote_tree.printtree(path, foldersonly=True)
 
     def print_folder_contents(self, path):
+        path = self.fix_path(path)
         self._remote_tree.print_folder_contents(path)
 
     def get_folder_contents(self, folder):
@@ -258,6 +260,7 @@ class DPManager(object):
         return folder.children
 
     def get_node(self, path):
+        path = self.fix_path(path)
         res = self._remote_tree.get_node_by_path(path)
         return res
 
@@ -265,17 +268,22 @@ class DPManager(object):
         """Check if a node exists on the DPT-RP1.
 
         """
+        path = self.fix_path(path)
         if self.get_node(path) is None:
             return False
         else:
             return True
 
-    def node_name_ok(self, name):
-        if not name.startswith("Document"):
-            print('ERROR: DPT-RP1 file or folder name must start with "Document"')
-            return False
+    def fix_path(self, path):
+        """Append Document/ to path and remove trailing / if necessary.
+
+        """
+        if path.endswith("/"):
+            path = path[:-1]
+        if not path.startswith("Document"):
+            return "Document/{}".format(path)
         else:
-            return True
+            return path
 
     def file_name_ok(self, name):
         splitname = name.rsplit(".", maxsplit=1)
@@ -289,10 +297,9 @@ class DPManager(object):
         """Create a new directory on the DPT-RP1.
 
         """
-        if path.endswith("/"):
-            path = path[:-1]
+        path = self.fix_path(path)
         parent_folder, new_folder = path.rsplit("/", maxsplit=1)
-        if self.node_name_ok(path) and self.node_exists(parent_folder):
+        if self.node_exists(parent_folder):
             if not self.node_exists(path, print_error=False):
                 print("Creating folder {}".format(path))
                 parent_folder_id = self.get_node(parent_folder).entry_id
@@ -304,9 +311,8 @@ class DPManager(object):
         """Delete a (empty) directory on the DPT-RP1.
 
         """
-        if path.endswith("/"):
-            path = path[:-1]
-        if self.node_name_ok(path) and self.node_exists(path):
+        path = self.fix_path(path)
+        if self.node_exists(path):
             print("Deleting dir {}.".format(path))
             dir_id = self.get_node(path).entry_id
             self._rm_dir(dir_id)
@@ -318,7 +324,8 @@ class DPManager(object):
         """Delete a file on the DPT-RP1.
 
         """
-        if self.node_name_ok(path) and self.node_exists(path):
+        path = self.fix_path(path)
+        if self.node_exists(path):
             print("Deleting file {}.".format(path))
             file_id = self.get_node(path).entry_id
             self._rm_file(file_id)
@@ -330,7 +337,8 @@ class DPManager(object):
         """Delete a file or (empty) directory.
 
         """
-        if self.node_name_ok(path) and self.node_exists(path):
+        path = self.fix_path(path)
+        if self.node_exists(path):
             n = self.get_node(path)
             if isinstance(n, remotetree.DPDocumentNode):
                 self.rm_file(path)
@@ -342,7 +350,8 @@ class DPManager(object):
         into subdirectories.
 
         """
-        if self.node_name_ok(path) and self.node_exists(path):
+        path = self.fix_path(path)
+        if self.node_exists(path):
             files = self.get_folder_contents(path)
             for f in files:
                 if isinstance(f, remotetree.DPDocumentNode):
@@ -353,7 +362,8 @@ class DPManager(object):
         delete the directory itself.
 
         """
-        if self.node_name_ok(path) and self.node_exists(path):
+        path = self.fix_path(path)
+        if self.node_exists(path):
             files = self.get_folder_contents(path)
             for f in files:
                 if isinstance(f, remotetree.DPDocumentNode):
@@ -441,10 +451,10 @@ class Downloader(FileTransferHandler):
 
         """
         dest = osp.expanduser(dest)
+        source = self._dp_mgr.fix_path(source)
         source_node = self._dp_mgr.get_node(source)
         if (
             self._check_policy(policy)
-            and self._dp_mgr.node_name_ok(source)
             and self._dp_mgr.node_exists(source)
             and self._local_path_ok(osp.dirname(dest))
             and isinstance(source_node, remotetree.DPDocumentNode)
@@ -492,9 +502,9 @@ class Downloader(FileTransferHandler):
 
         """
         dest = osp.expanduser(dest)
+        source = self._dp_mgr.fix_path(source)
         if (
             self._check_policy(policy)
-            and self._dp_mgr.node_name_ok(source)
             and self._dp_mgr.node_exists(source)
         ):
             src_files = self._dp_mgr.get_folder_contents(source)
@@ -510,11 +520,11 @@ class Downloader(FileTransferHandler):
 
         """
         dest = osp.expanduser(dest)
+        source = self._dp_mgr.fix_path(source)
         if not self._local_path_ok(dest):
             return None
         if (
             self._check_policy(policy)
-            and self._dp_mgr.node_name_ok(source)
             and self._dp_mgr.node_exists(source)
         ):
             src_nodes = self._dp_mgr.get_folder_contents(source)
@@ -552,10 +562,10 @@ class Uploader(FileTransferHandler):
 
         """
         source = osp.expanduser(source)
+        dest = self._dp_mgr.fix_path(dest)
         dest_dir, dest_fn = dest.rsplit("/", maxsplit=1)
         if (
             self._check_policy(policy)
-            and self._dp_mgr.node_name_ok(dest)
             and self._dp_mgr.node_exists(dest_dir)
             and self._local_path_ok(source)
             and self._dp_mgr.file_name_ok(dest)
@@ -605,13 +615,14 @@ class Uploader(FileTransferHandler):
 
         """
         source = osp.expanduser(source)
+        dest = self._dp_mgr.fix_path(dest)
         if self._check_policy(policy) and self._local_path_ok(source):
             src_files = (
                 osp.join(source, fn)
                 for fn in os.listdir(source)
                 if osp.isfile(osp.join(source, fn))
             )
-            if self._dp_mgr.node_name_ok(dest) and self._dp_mgr.node_exists(dest):
+            if self._dp_mgr.node_exists(dest):
                 for f in src_files:
                     dest_fn = dest + "/" + osp.basename(f)
                     self.upload_file(f, dest_fn, policy)
@@ -621,8 +632,9 @@ class Uploader(FileTransferHandler):
 
         """
         source = osp.expanduser(source)
+        dest = self._dp_mgr.fix_path(dest)
         if self._check_policy(policy) and self._local_path_ok(source):
-            if self._dp_mgr.node_name_ok(dest) and self._dp_mgr.node_exists(dest):
+            if self._dp_mgr.node_exists(dest):
                 src_files = (
                     osp.join(source, fn)
                     for fn in os.listdir(source)
