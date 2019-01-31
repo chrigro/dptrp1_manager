@@ -649,7 +649,7 @@ class Uploader(FileTransferHandler):
                     if osp.isdir(osp.join(source, fn))
                 )
                 for d in src_dirs:
-                    if not d.startswith('.'):  # no hidden directories.
+                    if not d.startswith('.') and not "/." in d:  # no hidden directories.
                         new_remote_path = dest + "/" + osp.basename(d)
                         new_local_path = d
                         if not self._dp_mgr.node_exists(new_remote_path, print_error=False):
