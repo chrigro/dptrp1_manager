@@ -453,7 +453,7 @@ class Downloader(FileTransferHandler):
             if osp.exists(dest):
                 if self._is_equal(dest, source):
                     do_transfer = False
-                    print("EQUAL: Skipping download of {}".format(osp.basename(source)))
+                    # print("EQUAL: Skipping download of {}".format(osp.basename(source)))
                 else:
                     if policy == "local_wins":
                         do_transfer = False
@@ -564,7 +564,7 @@ class Uploader(FileTransferHandler):
             if self._dp_mgr.node_exists(dest, print_error=False):
                 if self._is_equal(source, dest):
                     do_transfer = False
-                    print("EQUAL: Skipping upload of {}".format(osp.basename(source)))
+                    # print("EQUAL: Skipping upload of {}".format(osp.basename(source)))
                 else:
                     if policy == "local_wins":
                         # delete the old file
