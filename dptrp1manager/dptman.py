@@ -25,6 +25,9 @@ import datetime
 import configparser
 import subprocess
 import re
+import socket
+import psutil
+import time
 
 import serial
 import anytree
@@ -32,10 +35,11 @@ from dptrp1manager import tools, remotetree, mydptrp1
 
 from pprint import pprint
 
-CONFIGDIR = osp.join(osp.expanduser('~'), '.dpmgr')
+CONFIGDIR = osp.join(osp.expanduser("~"), ".dpmgr")
 
 # on usb
 # dptrp1  --addr "[fe80::b47f:46ff:fe5d:7741%enp0s20f0u2]" list-documents
+
 
 class DPManager(object):
     """Main class to manage the DPT-RP1.
@@ -55,18 +59,19 @@ class DPManager(object):
         DigitalPaper instance
 
     """
-    def __init__(self, ip='', register=False):
+
+    def __init__(self, ip="", register=False):
         super(DPManager, self).__init__()
         self._config = configparser.ConfigParser()
         self._checkconfigfile()
         addr = self._get_ip(ip)
-        print('Attempting connection to ip {}'.format(addr))
+        print("Attempting connection to ip {}".format(addr))
         self.dp = mydptrp1.MyDigitalPaper(addr)
         if self.dp is None:
             sys.exit(1)
-        self._key_file = osp.join(CONFIGDIR, 'dptrp1_key')
-        self._clientid_file = osp.join(CONFIGDIR, 'dptrp1_id')
-        self._resolver = anytree.resolver.Resolver('name')
+        self._key_file = osp.join(CONFIGDIR, "dptrp1_key")
+        self._clientid_file = osp.join(CONFIGDIR, "dptrp1_id")
+        self._resolver = anytree.resolver.Resolver("name")
         self._remote_tree = None
 
         self._check_registered(register)
@@ -77,34 +82,54 @@ class DPManager(object):
         """Check the config file.
 
         """
-        if osp.exists(osp.join(CONFIGDIR, 'dpmgr.conf')):
-            self._config.read(osp.join(CONFIGDIR, 'dpmgr.conf'))
-        if not self._config.has_section('IP'):
-            self._config['IP'] = {}
-            self._config['IP']['default'] = 'digitalpaper.local'
-        with open(osp.join(CONFIGDIR, 'dpmgr.conf'), 'w') as f:
+        if osp.exists(osp.join(CONFIGDIR, "dpmgr.conf")):
+            self._config.read(osp.join(CONFIGDIR, "dpmgr.conf"))
+        if not self._config.has_section("IP"):
+            self._config["IP"] = {}
+            self._config["IP"]["default"] = "digitalpaper.local"
+        with open(osp.join(CONFIGDIR, "dpmgr.conf"), "w") as f:
             self._config.write(f)
+
+    def _interface_up(self, interface):
+        """Check if the net interface is up.
+
+        """
+        interface_addrs = psutil.net_if_addrs().get(interface) or []
+        return socket.AF_INET in [snicaddr.family for snicaddr in interface_addrs]
+
+    def _wait_until_connected(self, interface):
+        retry = 0
+        print("Connecting ", end="", flush=True)
+        while (not self._interface_up(interface)) and retry < 50:
+            time.sleep(0.3)
+            retry += 1
+            print(".", end="", flush=True)
+        if not self._interface_up(interface):
+            print("Could not connect to the DPT-RP1 via USB, exiting.")
+            sys.exit(1)
+        print("\n", end="", flush=True)
 
     def _get_ip(self, ip):
         # prefer usb
         if self._is_usb_conneted():
             self._set_up_eth_usb()
-            ip_bare = self._config['USB']['ipv6']
-            iface = self._config['USB']['interface']
+            ip_bare = self._config["USB"]["ipv6"]
+            iface = self._config["USB"]["interface"]
+            self._wait_until_connected(iface)
             ip = "[{}%{}]".format(ip_bare, iface)
             print("Using ethernet over USB with ip {} to connect.".format(ip))
-        elif ip == '':
-            ip = self._config['IP']['default']
+        elif ip == "":
+            ip = self._config["IP"]["default"]
             ssids = tools.get_ssids()
-            print('Network info: {}'.format(ssids))
+            print("Network info: {}".format(ssids))
             if ssids is not None:
                 # we are on linux, try to find configured ip
                 for ssid in ssids.values():
-                    if not ssid == '':
-                        if self._config.has_option('IP', ssid):
-                            ip = self._config['IP'][ssid]
+                    if not ssid == "":
+                        if self._config.has_option("IP", ssid):
+                            ip = self._config["IP"][ssid]
                         else:
-                            print('No custom IP defined for network {}'.format(ssid))
+                            print("No custom IP defined for network {}".format(ssid))
         return ip
 
     def _is_usb_conneted(self):
@@ -112,18 +137,24 @@ class DPManager(object):
 
         """
         res = False
-        device_re = re.compile("Bus\s+(?P<bus>\d+)\s+Device\s+(?P<device>\d+).+ID\s(?P<id>\w+:\w+)\s(?P<tag>.+)$", re.I)
+        device_re = re.compile(
+            "Bus\s+(?P<bus>\d+)\s+Device\s+(?P<device>\d+).+ID\s(?P<id>\w+:\w+)\s(?P<tag>.+)$",
+            re.I,
+        )
         df = str(subprocess.check_output("lsusb"), encoding="UTF8")
         devices = []
-        for i in df.split('\n'):
+        for i in df.split("\n"):
             if i:
                 info = device_re.match(i)
                 if info:
                     dinfo = info.groupdict()
-                    dinfo['device'] = '/dev/bus/usb/%s/%s' % (dinfo.pop('bus'), dinfo.pop('device'))
+                    dinfo["device"] = "/dev/bus/usb/%s/%s" % (
+                        dinfo.pop("bus"),
+                        dinfo.pop("device"),
+                    )
                     devices.append(dinfo)
         for dev in devices:
-            if dev['tag'] == "Sony Corp. ":
+            if dev["tag"] == "Sony Corp. ":
                 res = True
         return res
 
@@ -143,19 +174,31 @@ class DPManager(object):
         # use CDC/ECM mode
         send_val = b"\x01\x00\x00\x01\x00\x00\x00\x01\x01\x04"
         try:
-            ser = serial.Serial('/dev/ttyACM0', 9600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
+            ser = serial.Serial(
+                "/dev/ttyACM0",
+                9600,
+                serial.EIGHTBITS,
+                serial.PARITY_NONE,
+                serial.STOPBITS_ONE,
+            )
             ser.write(send_val)
         except serial.serialutil.SerialException:
-            try: 
-                ser = serial.Serial('/dev/ttyACM1', 9600, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_ONE)
+            try:
+                ser = serial.Serial(
+                    "/dev/ttyACM1",
+                    9600,
+                    serial.EIGHTBITS,
+                    serial.PARITY_NONE,
+                    serial.STOPBITS_ONE,
+                )
                 ser.write(send_val)
             except:
                 pass
 
     def _authenticate(self):
-        with open(self._clientid_file, 'r') as f:
+        with open(self._clientid_file, "r") as f:
             client_id = f.readline().strip()
-        with open(self._key_file, 'rb') as f:
+        with open(self._key_file, "rb") as f:
             key = f.read()
         res = self.dp.authenticate(client_id, key)
         if res is False:
@@ -168,8 +211,7 @@ class DPManager(object):
     def _check_registered(self, register):
         self._check_configpath()
         if not register:
-            if (not osp.exists(self._clientid_file) or not
-                    osp.exists(self._key_file)):
+            if not osp.exists(self._clientid_file) or not osp.exists(self._key_file):
                 self._register()
         else:
             self._register()
@@ -179,9 +221,9 @@ class DPManager(object):
         if res is not None:
             key = res[1]
             device_id = res[2]
-            with open(self._key_file, 'w') as f:
+            with open(self._key_file, "w") as f:
                 f.write(key)
-            with open(self._clientid_file, 'w') as f:
+            with open(self._clientid_file, "w") as f:
                 f.write(device_id)
         else:
             sys.exit(1)
@@ -229,15 +271,15 @@ class DPManager(object):
             return True
 
     def node_name_ok(self, name):
-        if not name.startswith('Document'):
+        if not name.startswith("Document"):
             print('ERROR: DPT-RP1 file or folder name must start with "Document"')
             return False
         else:
             return True
 
     def file_name_ok(self, name):
-        splitname = name.rsplit('.', maxsplit=1)
-        if len(splitname) == 2 and splitname[1] == 'pdf':
+        splitname = name.rsplit(".", maxsplit=1)
+        if len(splitname) == 2 and splitname[1] == "pdf":
             return True
         else:
             print('ERROR: DPT-RP1 file name must end with ".pdf"')
@@ -247,26 +289,25 @@ class DPManager(object):
         """Create a new directory on the DPT-RP1.
 
         """
-        if path.endswith('/'):
+        if path.endswith("/"):
             path = path[:-1]
-        parent_folder, new_folder = path.rsplit('/', maxsplit=1)
-        if (self.node_name_ok(path) and
-                self.node_exists(parent_folder)):
+        parent_folder, new_folder = path.rsplit("/", maxsplit=1)
+        if self.node_name_ok(path) and self.node_exists(parent_folder):
             if not self.node_exists(path, print_error=False):
-                print('Creating folder {}'.format(path))
+                print("Creating folder {}".format(path))
                 parent_folder_id = self.get_node(parent_folder).entry_id
                 self.dp.new_folder_byid(parent_folder_id, new_folder)
             else:
-                print('ERROR: DPT-RP1 has already a folder {}'.format(path))
+                print("ERROR: DPT-RP1 has already a folder {}".format(path))
 
     def rm_dir(self, path):
         """Delete a (empty) directory on the DPT-RP1.
 
         """
-        if path.endswith('/'):
+        if path.endswith("/"):
             path = path[:-1]
-        if (self.node_name_ok(path) and self.node_exists(path)):
-            print('Deleting dir {}.'.format(path))
+        if self.node_name_ok(path) and self.node_exists(path):
+            print("Deleting dir {}.".format(path))
             dir_id = self.get_node(path).entry_id
             self._rm_dir(dir_id)
 
@@ -277,8 +318,8 @@ class DPManager(object):
         """Delete a file on the DPT-RP1.
 
         """
-        if (self.node_name_ok(path) and self.node_exists(path)):
-            print('Deleting file {}.'.format(path))
+        if self.node_name_ok(path) and self.node_exists(path):
+            print("Deleting file {}.".format(path))
             file_id = self.get_node(path).entry_id
             self._rm_file(file_id)
 
@@ -289,7 +330,7 @@ class DPManager(object):
         """Delete a file or (empty) directory.
 
         """
-        if (self.node_name_ok(path) and self.node_exists(path)):
+        if self.node_name_ok(path) and self.node_exists(path):
             n = self.get_node(path)
             if isinstance(n, remotetree.DPDocumentNode):
                 self.rm_file(path)
@@ -301,7 +342,7 @@ class DPManager(object):
         into subdirectories.
 
         """
-        if (self.node_name_ok(path) and self.node_exists(path)):
+        if self.node_name_ok(path) and self.node_exists(path):
             files = self.get_folder_contents(path)
             for f in files:
                 if isinstance(f, remotetree.DPDocumentNode):
@@ -312,7 +353,7 @@ class DPManager(object):
         delete the directory itself.
 
         """
-        if (self.node_name_ok(path) and self.node_exists(path)):
+        if self.node_name_ok(path) and self.node_exists(path):
             files = self.get_folder_contents(path)
             for f in files:
                 if isinstance(f, remotetree.DPDocumentNode):
@@ -330,6 +371,7 @@ class FileTransferHandler(object):
     dp_mgr : DPManager
 
     """
+
     def __init__(self, dp_mgr):
         super(FileTransferHandler, self).__init__()
         self._dp_mgr = dp_mgr
@@ -353,25 +395,25 @@ class FileTransferHandler(object):
         """
         remote_time = self._dp_mgr.get_node(remote).modified_date
         local_time = datetime.datetime.fromtimestamp(osp.getmtime(local))
-        print('{}: {}'.format(remote,remote_time))
-        print('{}: {}'.format(local,local_time))
+        print("{}: {}".format(remote, remote_time))
+        print("{}: {}".format(local, local_time))
         if remote_time > local_time:
-            return 'remote_newer'
+            return "remote_newer"
         else:
-            return 'local_newer'
+            return "local_newer"
 
     def _local_path_ok(self, path, printerr=True):
         if not osp.exists(path):
             if printerr:
-                print('ERROR: Local file or folder {} does not exist.'.format(path))
+                print("ERROR: Local file or folder {} does not exist.".format(path))
             return False
         else:
             return True
 
     def _check_policy(self, policy):
-        policies = ('remote_wins', 'local_wins', 'newer', 'skip')
+        policies = ("remote_wins", "local_wins", "newer", "skip")
         if not policy in policies:
-            print('ERROR: Policy must be one of {}'.format(policies))
+            print("ERROR: Policy must be one of {}".format(policies))
             return False
         else:
             return True
@@ -381,10 +423,11 @@ class Downloader(FileTransferHandler):
     """Manage downloading of files.
 
     """
+
     def __init__(self, dp_mgr):
         super(Downloader, self).__init__(dp_mgr)
 
-    def download_file(self, source, dest, policy='skip'):
+    def download_file(self, source, dest, policy="skip"):
         """Download a file from the DPT-RP1.
 
         Parameter
@@ -399,67 +442,87 @@ class Downloader(FileTransferHandler):
         """
         dest = osp.expanduser(dest)
         source_node = self._dp_mgr.get_node(source)
-        if (self._check_policy(policy) and
-                self._dp_mgr.node_name_ok(source) and
-                self._dp_mgr.node_exists(source) and
-                self._local_path_ok(osp.dirname(dest)) and
-                isinstance(source_node, remotetree.DPDocumentNode)):
+        if (
+            self._check_policy(policy)
+            and self._dp_mgr.node_name_ok(source)
+            and self._dp_mgr.node_exists(source)
+            and self._local_path_ok(osp.dirname(dest))
+            and isinstance(source_node, remotetree.DPDocumentNode)
+        ):
             do_transfer = True
             if osp.exists(dest):
                 if self._is_equal(dest, source):
                     do_transfer = False
-                    print('EQUAL: Skipping download of {}'.format(osp.basename(source)))
+                    print("EQUAL: Skipping download of {}".format(osp.basename(source)))
                 else:
-                    if policy == 'local_wins':
+                    if policy == "local_wins":
                         do_transfer = False
-                        print('LOCAL_WINS: Skipping download of {}'.format(osp.basename(source)))
-                    elif policy == 'remote_wins':
+                        print(
+                            "LOCAL_WINS: Skipping download of {}".format(
+                                osp.basename(source)
+                            )
+                        )
+                    elif policy == "remote_wins":
                         do_transfer = True
-                    elif policy == 'newer':
-                        if self._check_datetime(dest, source) == 'remote_newer':
+                    elif policy == "newer":
+                        if self._check_datetime(dest, source) == "remote_newer":
                             do_transfer = True
                         else:
                             do_transfer = False
-                            print('NEWER: Skipping download of {}'.format(osp.basename(source)))
-                    elif policy == 'skip':
+                            print(
+                                "NEWER: Skipping download of {}".format(
+                                    osp.basename(source)
+                                )
+                            )
+                    elif policy == "skip":
                         do_transfer = False
-                        print('SKIP: Skipping download of {}'.format(osp.basename(source)))
+                        print(
+                            "SKIP: Skipping download of {}".format(osp.basename(source))
+                        )
             if do_transfer:
-                print('Downloading {}'.format(source))
+                print("Downloading {}".format(source))
                 data = self._dp_mgr.dp.download_byid(source_node.entry_id)
-                with open(dest, 'wb') as f:
+                with open(dest, "wb") as f:
                     f.write(data)
         else:
-            print('ERROR: Failed downloading {}. File not found.'.format(source))
+            print("ERROR: Failed downloading {}. File not found.".format(source))
 
-    def download_folder_contents(self, source, dest, policy='skip'):
+    def download_folder_contents(self, source, dest, policy="skip"):
         """Download a full folder from the DPT-RP1.
 
         """
         dest = osp.expanduser(dest)
-        if (self._check_policy(policy) and
-                self._dp_mgr.node_name_ok(source) and
-                self._dp_mgr.node_exists(source)):
+        if (
+            self._check_policy(policy)
+            and self._dp_mgr.node_name_ok(source)
+            and self._dp_mgr.node_exists(source)
+        ):
             src_files = self._dp_mgr.get_folder_contents(source)
             if self._local_path_ok(dest):
                 for f in src_files:
                     if isinstance(f, remotetree.DPDocumentNode):
-                        self.download_file(f.entry_path, osp.join(dest, f.entry_name), policy)
+                        self.download_file(
+                            f.entry_path, osp.join(dest, f.entry_name), policy
+                        )
 
-    def download_recursively(self, source, dest, policy='skip'):
+    def download_recursively(self, source, dest, policy="skip"):
         """Download recursively.
 
         """
         dest = osp.expanduser(dest)
         if not self._local_path_ok(dest):
             return None
-        if (self._check_policy(policy) and
-                self._dp_mgr.node_name_ok(source) and
-                self._dp_mgr.node_exists(source)):
+        if (
+            self._check_policy(policy)
+            and self._dp_mgr.node_name_ok(source)
+            and self._dp_mgr.node_exists(source)
+        ):
             src_nodes = self._dp_mgr.get_folder_contents(source)
             for f in src_nodes:
                 if isinstance(f, remotetree.DPDocumentNode):
-                    self.download_file(f.entry_path, osp.join(dest, f.entry_name), policy)
+                    self.download_file(
+                        f.entry_path, osp.join(dest, f.entry_name), policy
+                    )
                 else:
                     new_local_path = osp.join(dest, f.entry_name)
                     if not self._local_path_ok(new_local_path, printerr=False):
@@ -471,10 +534,11 @@ class Uploader(FileTransferHandler):
     """Manage uploading of files.
 
     """
+
     def __init__(self, dp_mgr):
         super(Uploader, self).__init__(dp_mgr)
 
-    def upload_file(self, source, dest, policy='skip'):
+    def upload_file(self, source, dest, policy="skip"):
         """Upload a file to the DPT-RP1.
 
         Parameter
@@ -488,73 +552,92 @@ class Uploader(FileTransferHandler):
 
         """
         source = osp.expanduser(source)
-        dest_dir, dest_fn = dest.rsplit('/', maxsplit=1)
-        if (self._check_policy(policy) and
-                self._dp_mgr.node_name_ok(dest) and
-                self._dp_mgr.node_exists(dest_dir) and
-                self._local_path_ok(source) and
-                self._dp_mgr.file_name_ok(dest)):
+        dest_dir, dest_fn = dest.rsplit("/", maxsplit=1)
+        if (
+            self._check_policy(policy)
+            and self._dp_mgr.node_name_ok(dest)
+            and self._dp_mgr.node_exists(dest_dir)
+            and self._local_path_ok(source)
+            and self._dp_mgr.file_name_ok(dest)
+        ):
             do_transfer = True
             if self._dp_mgr.node_exists(dest, print_error=False):
                 if self._is_equal(source, dest):
                     do_transfer = False
-                    print('EQUAL: Skipping upload of {}'.format(osp.basename(source)))
+                    print("EQUAL: Skipping upload of {}".format(osp.basename(source)))
                 else:
-                    if policy == 'local_wins':
+                    if policy == "local_wins":
                         # delete the old file
                         self._dp_mgr.rm_file(dest)
                         do_transfer = True
-                    elif policy == 'remote_wins':
+                    elif policy == "remote_wins":
                         do_transfer = False
-                        print('REMOTE_WINS: Skipping upload of {}'.format(osp.basename(source)))
-                    elif policy == 'newer':
-                        if self._check_datetime(source, dest) == 'local_newer':
+                        print(
+                            "REMOTE_WINS: Skipping upload of {}".format(
+                                osp.basename(source)
+                            )
+                        )
+                    elif policy == "newer":
+                        if self._check_datetime(source, dest) == "local_newer":
                             # delete the old file
                             self._dp_mgr.rm_file(dest)
                             do_transfer = True
                         else:
                             do_transfer = False
-                            print('NEWER: Skipping upload of {}'.format(osp.basename(source)))
-                    elif policy == 'skip':
+                            print(
+                                "NEWER: Skipping upload of {}".format(
+                                    osp.basename(source)
+                                )
+                            )
+                    elif policy == "skip":
                         do_transfer = False
-                        print('SKIP: Skipping upload of {}'.format(osp.basename(source)))
+                        print(
+                            "SKIP: Skipping upload of {}".format(osp.basename(source))
+                        )
             if do_transfer:
-                print('Adding file {}'.format(dest))
-                with open(source, 'rb') as f:
+                print("Adding file {}".format(dest))
+                with open(source, "rb") as f:
                     dest_dir_node = self._dp_mgr.get_node(dest_dir)
                     self._dp_mgr.dp.upload_byid(f, dest_dir_node.entry_id, dest_fn)
 
-    def upload_folder_contents(self, source, dest, policy='skip'):
+    def upload_folder_contents(self, source, dest, policy="skip"):
         """Upload a full folder to the DPT-RP1.
 
         """
         source = osp.expanduser(source)
-        if (self._check_policy(policy) and
-                self._local_path_ok(source)):
-            src_files = (osp.join(source, fn) for fn in os.listdir(source)
-                    if osp.isfile(osp.join(source, fn)))
+        if self._check_policy(policy) and self._local_path_ok(source):
+            src_files = (
+                osp.join(source, fn)
+                for fn in os.listdir(source)
+                if osp.isfile(osp.join(source, fn))
+            )
             if self._dp_mgr.node_name_ok(dest) and self._dp_mgr.node_exists(dest):
                 for f in src_files:
-                    dest_fn = dest + '/' + osp.basename(f)
+                    dest_fn = dest + "/" + osp.basename(f)
                     self.upload_file(f, dest_fn, policy)
 
-    def upload_recursively(self, source, dest, policy='skip'):
+    def upload_recursively(self, source, dest, policy="skip"):
         """Upload recursively.
 
         """
         source = osp.expanduser(source)
-        if (self._check_policy(policy) and
-                self._local_path_ok(source)):
+        if self._check_policy(policy) and self._local_path_ok(source):
             if self._dp_mgr.node_name_ok(dest) and self._dp_mgr.node_exists(dest):
-                src_files = (osp.join(source, fn) for fn in os.listdir(source)
-                        if osp.isfile(osp.join(source, fn)))
+                src_files = (
+                    osp.join(source, fn)
+                    for fn in os.listdir(source)
+                    if osp.isfile(osp.join(source, fn))
+                )
                 for f in src_files:
-                    dest_fn = dest + '/' + osp.basename(f)
+                    dest_fn = dest + "/" + osp.basename(f)
                     self.upload_file(f, dest_fn, policy)
-                src_dirs = (osp.join(source, fn) for fn in os.listdir(source)
-                        if osp.isdir(osp.join(source, fn)))
+                src_dirs = (
+                    osp.join(source, fn)
+                    for fn in os.listdir(source)
+                    if osp.isdir(osp.join(source, fn))
+                )
                 for d in src_dirs:
-                    new_remote_path = dest + '/' + osp.basename(d)
+                    new_remote_path = dest + "/" + osp.basename(d)
                     new_local_path = d
                     if not self._dp_mgr.node_exists(new_remote_path, print_error=False):
                         self._dp_mgr.mkdir(new_remote_path)
@@ -566,6 +649,7 @@ class Synchronizer(FileTransferHandler):
     """Syncronize the DPT-RP1 with a folder.
 
     """
+
     def __init__(self, dp_mgr):
         super(Synchronizer, self).__init__(dp_mgr)
         self._downloader = Downloader(dp_mgr)
@@ -577,17 +661,19 @@ class Synchronizer(FileTransferHandler):
         """Check the config file.
 
         """
-        if osp.exists(osp.join(CONFIGDIR, 'sync.conf')):
-            self._config.read(osp.join(CONFIGDIR, 'sync.conf'))
+        if osp.exists(osp.join(CONFIGDIR, "sync.conf")):
+            self._config.read(osp.join(CONFIGDIR, "sync.conf"))
         if self._config.sections() == []:
-            self._config['pair1'] = {}
-            self._config['pair1']['local_path'] = '<replace by local path>'
-            self._config['pair1']['remote_path'] = '<replace by remote path>'
-            self._config['pair1']['policy'] = '<one of: remote_wins, local_wins, newer, skip>'
-        with open(osp.join(CONFIGDIR, 'sync.conf'), 'w') as f:
+            self._config["pair1"] = {}
+            self._config["pair1"]["local_path"] = "<replace by local path>"
+            self._config["pair1"]["remote_path"] = "<replace by remote path>"
+            self._config["pair1"][
+                "policy"
+            ] = "<one of: remote_wins, local_wins, newer, skip>"
+        with open(osp.join(CONFIGDIR, "sync.conf"), "w") as f:
             self._config.write(f)
 
-    def sync_folder(self, local, remote, policy='skip'):
+    def sync_folder(self, local, remote, policy="skip"):
         """Synchronize a local and remote folder recursively.
 
         Parameters
@@ -608,10 +694,10 @@ class Synchronizer(FileTransferHandler):
 
         """
         for pair in self._config.sections():
-            print('---Staring to sync pair {}---'.format(pair))
-            lp = self._config[pair]['local_path']
-            rp = self._config[pair]['remote_path']
-            pol = self._config[pair]['policy']
+            print("---Staring to sync pair {}---".format(pair))
+            lp = self._config[pair]["local_path"]
+            rp = self._config[pair]["remote_path"]
+            pol = self._config[pair]["policy"]
             self.sync_folder(lp, rp, pol)
 
 
@@ -623,6 +709,7 @@ class DPConfig(object):
     dp_mgr : DPManager
 
     """
+
     def __init__(self, dp_mgr):
         super(DPConfig, self).__init__()
         self._dp_mgr = dp_mgr
@@ -634,8 +721,8 @@ class DPConfig(object):
         """
         res = self._dp_mgr.dp.list_templates()
         tmp_list = []
-        for template in res['template_list']:
-            tmp_list.append(template['template_name'])
+        for template in res["template_list"]:
+            tmp_list.append(template["template_name"])
         return tmp_list
 
     def rename_template(self, old_name, new_name):
@@ -646,11 +733,15 @@ class DPConfig(object):
 
     def add_template(self, name, path):
         path = osp.expanduser(path)
-        if osp.exists(path) and path.endswith('.pdf'):
-            with open(path, 'rb') as f:
+        if osp.exists(path) and path.endswith(".pdf"):
+            with open(path, "rb") as f:
                 self._dp_mgr.dp.add_template(name, f)
         else:
-            print('Adding template failed. File {} not found or not a pdf file.'.format(path))
+            print(
+                "Adding template failed. File {} not found or not a pdf file.".format(
+                    path
+                )
+            )
 
     @property
     def timeout(self):
@@ -718,7 +809,7 @@ class DPConfig(object):
 
         """
         storage = self._dp_mgr.dp.get_storage()
-        free = float(storage['available'])
+        free = float(storage["available"])
         return free
 
     @property
@@ -727,7 +818,7 @@ class DPConfig(object):
 
         """
         storage = self._dp_mgr.dp.get_storage()
-        total = float(storage['capacity'])
+        total = float(storage["capacity"])
         return total
 
     @property
@@ -736,7 +827,7 @@ class DPConfig(object):
 
         """
         battery = self._dp_mgr.dp.get_battery()
-        return battery['level']
+        return battery["level"]
 
     @property
     def battery_pen(self):
@@ -744,7 +835,7 @@ class DPConfig(object):
 
         """
         battery = self._dp_mgr.dp.get_battery()
-        return battery['pen']
+        return battery["pen"]
 
     @property
     def battery_health(self):
@@ -752,7 +843,7 @@ class DPConfig(object):
 
         """
         battery = self._dp_mgr.dp.get_battery()
-        return battery['health']
+        return battery["health"]
 
     @property
     def battery_status(self):
@@ -760,7 +851,7 @@ class DPConfig(object):
 
         """
         battery = self._dp_mgr.dp.get_battery()
-        return battery['status']
+        return battery["status"]
 
     @property
     def plugged(self):
@@ -768,7 +859,7 @@ class DPConfig(object):
 
         """
         battery = self._dp_mgr.dp.get_battery()
-        return battery['plugged']
+        return battery["plugged"]
 
     @property
     def model(self):
@@ -776,7 +867,7 @@ class DPConfig(object):
 
         """
         info = self._dp_mgr.dp.get_info()
-        return info['model_name']
+        return info["model_name"]
 
     @property
     def serial(self):
@@ -784,7 +875,7 @@ class DPConfig(object):
 
         """
         info = self._dp_mgr.dp.get_info()
-        return info['serial_number']
+        return info["serial_number"]
 
     @property
     def firmware_version(self):
@@ -814,8 +905,19 @@ class DPConfig(object):
         """
         return self._dp_mgr.dp.wifi_scan()
 
-    def add_wifi(self, ssid, security='nonsec', passwd='', dhcp=True, static_address='', gateway='',
-            network_mask='', dns1='', dns2='', proxy=False):
+    def add_wifi(
+        self,
+        ssid,
+        security="nonsec",
+        passwd="",
+        dhcp=True,
+        static_address="",
+        gateway="",
+        network_mask="",
+        dns1="",
+        dns2="",
+        proxy=False,
+    ):
         """Add a wifi network.
 
         Parameters
@@ -842,10 +944,20 @@ class DPConfig(object):
             Use a proxy?
 
         """
-        self._dp_mgr.dp.configure_wifi(ssid, security, passwd, dhcp,
-                static_address, gateway, network_mask, dns1, dns2, proxy)
+        self._dp_mgr.dp.configure_wifi(
+            ssid,
+            security,
+            passwd,
+            dhcp,
+            static_address,
+            gateway,
+            network_mask,
+            dns1,
+            dns2,
+            proxy,
+        )
 
-    def delete_wifi(self, ssid, security='nonsec'):
+    def delete_wifi(self, ssid, security="nonsec"):
         """Delete a known wifi
 
         Parameters
@@ -863,8 +975,8 @@ class DPConfig(object):
         """Is wifi enabled?
 
         """
-        val = self._dp_mgr.dp.wifi_enabled()['value']
-        if val == 'on':
+        val = self._dp_mgr.dp.wifi_enabled()["value"]
+        if val == "on":
             return True
         else:
             return False
@@ -910,6 +1022,5 @@ def main():
     # uploader.upload_folder_contents('~/Downloads/test', 'Document/Reader/test', policy='remote_wins')
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
