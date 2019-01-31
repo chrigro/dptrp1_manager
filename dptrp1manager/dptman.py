@@ -649,12 +649,13 @@ class Uploader(FileTransferHandler):
                     if osp.isdir(osp.join(source, fn))
                 )
                 for d in src_dirs:
-                    new_remote_path = dest + "/" + osp.basename(d)
-                    new_local_path = d
-                    if not self._dp_mgr.node_exists(new_remote_path, print_error=False):
-                        self._dp_mgr.mkdir(new_remote_path)
-                        self._dp_mgr.rebuild_tree()
-                    self.upload_recursively(new_local_path, new_remote_path, policy)
+                    if not d.startswith('.'):  # no hidden directories.
+                        new_remote_path = dest + "/" + osp.basename(d)
+                        new_local_path = d
+                        if not self._dp_mgr.node_exists(new_remote_path, print_error=False):
+                            self._dp_mgr.mkdir(new_remote_path)
+                            self._dp_mgr.rebuild_tree()
+                        self.upload_recursively(new_local_path, new_remote_path, policy)
 
 
 class Synchronizer(FileTransferHandler):
