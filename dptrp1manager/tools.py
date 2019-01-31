@@ -20,6 +20,7 @@
 
 from subprocess import check_output
 import sys
+from datetime import datetime
 
 def check_link(devs):
     if sys.platform == 'linux' or sys.platform == 'linux2':
@@ -64,6 +65,28 @@ def get_ssids():
     else:
         print('Can check for wireless devices only on linux.')
         return None
+
+
+def default(obj):
+    """For json serialization of a datetime object.
+
+    Use as json.dumps(default=default)
+
+    """
+    if isinstance(obj, datetime):
+        return { '_isoformat': obj.isoformat() }
+    return super().default(obj)
+
+def object_hook(obj):
+    """For json deserialization of a datetime object.
+
+    Use as json.loads(object_hook=object_hook)
+
+    """
+    _isoformat = obj.get('_isoformat')
+    if _isoformat is not None:
+        return datetime.fromisoformat(_isoformat)
+    return obj
 
 
 if __name__ == '__main__':

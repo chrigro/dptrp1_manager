@@ -2,10 +2,13 @@
 # -*- coding: utf-8 -*-
 
 from datetime import datetime
+import os.path as osp
+import time
 
 import anytree
+from anytree.exporter import JsonExporter
 
-import time
+from dptrp1manager import tools
 
 
 class DPNode(anytree.NodeMixin):
@@ -167,6 +170,19 @@ class RemoteTree(object):
         for data in jsondata:
             self._create_path(data["entry_path"])
             self._create_update_node(data)
+        self.save_to_file("~/.dpmgr/contents.json")
+
+    def save_to_file(self, path):
+        path = osp.expanduser(path)
+        if osp.exists(osp.dirname(path)):
+            exp = JsonExporter(indent=2, sort_keys=True, default=tools.default)
+            with open(path, "w") as f:
+                exp.write(self._tree, f)
+        else:
+            print("Error saving to disk. Dir {} not existing.".format(osp.dirname(path)))
+
+    def load_from_file(self, path):
+        pass
 
     def _create_tree_root(self):
         """Add the root tree node.
