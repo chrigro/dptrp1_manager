@@ -171,8 +171,7 @@ class RemoteTree(object):
             self._create_path(data["entry_path"])
             self._create_update_node(data)
         self.save_to_file("~/.dpmgr/contents.json")
-        self._save_dir_list("~/.dpmgr/contents_dir")
-        self._save_content_list("~/.dpmgr/contents_all")
+        self._save_content_list("~/.dpmgr/contents")
 
     def save_to_file(self, path):
         path = osp.expanduser(path)
