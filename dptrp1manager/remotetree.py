@@ -171,6 +171,8 @@ class RemoteTree(object):
             self._create_path(data["entry_path"])
             self._create_update_node(data)
         self.save_to_file("~/.dpmgr/contents.json")
+        self._save_dir_list("~/.dpmgr/contents_dir")
+        self._save_content_list("~/.dpmgr/contents_all")
 
     def save_to_file(self, path):
         path = osp.expanduser(path)
@@ -183,6 +185,22 @@ class RemoteTree(object):
 
     def load_from_file(self, path):
         pass
+
+    def _save_dir_list(self, path):
+        path = osp.expanduser(path)
+        if osp.exists(osp.dirname(path)):
+            with open(path, "w") as f:
+                for _, _, node in anytree.render.RenderTree(self._tree):
+                    if isinstance(node, DPFolderNode):
+                        f.write("{}\n".format(node.entry_path.split("/", 1)[1]))
+
+    def _save_content_list(self, path):
+        path = osp.expanduser(path)
+        if osp.exists(osp.dirname(path)):
+            with open(path, "w") as f:
+                for _, _, node in anytree.render.RenderTree(self._tree):
+                    if isinstance(node, (DPFolderNode, DPDocumentNode)):
+                        f.write("{}\n".format(node.entry_path.split("/", 1)[1]))
 
     def _create_tree_root(self):
         """Add the root tree node.
