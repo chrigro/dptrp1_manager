@@ -1,0 +1,61 @@
+#!/bin/bash
+#
+
+DPMGR_SUBCOMMANDS="upload download tree delete mkdir sync syncpairs status config add-wifi delete-wifi scan-wifi list-wifi list-templates rename-template upload-template delete-template"
+
+
+DIR_CONTENTS_FILE="$HOME/.dpmgr/contents_dir"
+
+
+# complete dpmgr
+_dpmgr()
+{
+  local cur=${COMP_WORDS[COMP_CWORD]}  # The current argument the user is writing
+  local prev=${COMP_WORDS[COMP_CWORD-1]} # The previous argument
+  local prevprev=${COMP_WORDS[COMP_CWORD-2]} # The previous argument
+  local first=${COMP_WORDS[1]} # The first argument
+
+  COMPREPLY=()
+
+  # complete the first argument
+  if [ $COMP_CWORD -eq 1 ]; then
+    # maybe completing an option
+    if [[ "$cur" == -* ]]; then
+      COMPREPLY=( $( compgen -W "-h --help" -- $cur ) )
+    else
+      COMPREPLY=( $( compgen -W "${DPMGR_SUBCOMMANDS}" -- $cur ) )
+    fi
+    return 0
+  fi
+
+  # complete the second (or third if there is an option) argument 
+  if [ $COMP_CWORD -eq 2 ] || ( [ $COMP_CWORD -eq 3 ] && [[ "$prev" == -* ]] ); then
+    case "$first" in
+      upload)
+        # maybe completing an option
+        if [[ "$cur" == -* ]]; then
+          COMPREPLY=( $( compgen -W "-h -d -a -r -l -n" -- $cur ) )
+        else
+          COMPREPLY=( $( compgen -o default -- $cur ) )
+        fi
+        return 0
+        ;;
+    esac
+  fi
+
+
+  # complete the third (or forth if there is an option) argument
+  if [ $COMP_CWORD -eq 3 ] || ( [ $COMP_CWORD -eq 4 ] && [[ "$prevprev" == -* ]] ); then
+    case "$first" in
+      upload)
+        COMPREPLY=( $( compgen -o filenames -W "$(cat "$DIR_CONTENTS_FILE")" -- $cur ) )
+        return 0
+        ;;
+    esac
+  fi
+
+
+}
+complete -F _dpmgr dpmgr
+
+
