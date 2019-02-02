@@ -27,11 +27,13 @@ class MyDigitalPaper(DigitalPaper):
         self._delete_endpoint(url)
 
     def delete_directory_byid(self, dir_id):
-        nnodes = self.get_directory_contents_byid(dir_id)["count"]
-        if nnodes == 0:
-            self._delete_endpoint('/folders/{}'.format(dir_id))
-        else:
-            print('ERROR: Remote directory not empty. Cannot delete it.')
+        data = self.get_directory_contents_byid(dir_id)
+        if not "error_code" in data.keys():
+            nnodes = data["count"]
+            if nnodes == 0:
+                self._delete_endpoint('/folders/{}'.format(dir_id))
+            else:
+                print('ERROR: Remote directory not empty. Cannot delete it.')
 
     def get_directory_contents_byid(self, dir_id):
         data = self._get_endpoint('/folders/{}/entries2'.format(dir_id)).json()

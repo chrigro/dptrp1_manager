@@ -331,7 +331,7 @@ class DPManager(object):
             self._rm_file(file_id)
 
     def _rm_file(self, file_id):
-        self.dp.delete_directory_byid(dir_id)
+        self.dp.delete_directory_byid(file_id)
 
     def rm(self, path):
         """Delete a file or (empty) directory.
