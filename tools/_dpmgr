@@ -1,0 +1,164 @@
+#compdef _dpmgr dpmgr
+
+function _dpmgr {
+    local context state state_descr line
+    typeset -A opt_args
+
+    _arguments -C \
+        "-h[Show help information]" \
+        "--help[Show help information]" \
+        "1: :(upload download tree delete mkdir sync syncpairs status config add-wifi delete-wifi scan-wifi list-wifi list-templates rename-template upload-template delete-template)" \
+        "*::arg:->args"
+
+    case $line[1] in
+        upload)
+            _dpmgr_upload
+        ;;
+        download)
+            _dpmgr_download
+        ;;
+        tree)
+            _dpmgr_tree
+        ;;
+        delete)
+            _dpmgr_delete
+        ;;
+        mkdir)
+            _dpmgr_mkdir
+        ;;
+        sync)
+            _dpmgr_sync
+        ;;
+        syncpairs)
+            _dpmgr_syncpairs
+        ;;
+        status)
+            _dpmgr_status
+        ;;
+        config)
+            _dpmgr_config
+        ;;
+        add-wifi)
+            _dpmgr_add_wifi
+        ;;
+        delete-wifi)
+            _dpmgr_delete_wifi
+        ;;
+        scan-wifi)
+            _dpmgr_scan_wifi
+        ;;
+        list-wifi)
+            _dpmgr_list_wifi
+        ;;
+        list-templates)
+            _dpmgr_list_templates
+        ;;
+        rename-template)
+            _dpmgr_rename_template
+        ;;
+        upload-template)
+            _dpmgr_upload_template
+        ;;
+        delete-template)
+            _dpmgr_delete_template
+        ;;
+    esac
+}
+
+function _dpmgr_upload {
+    _arguments -C \
+        "-h[Show help information]" \
+        "-d[Upload a whole directory]" \
+        "-a[Upload all, the whole subdirectory structure]" \
+        "-r[Prefer the remote file in case of a conflict]" \
+        "-l[Prefer the local file in case of a conflict]" \
+        "-n[Prefer the newer file in case of a conflict]" \
+        "1: :_files" \
+        "2: :_remote_complete" \
+        "*::arg:->args"
+}
+
+function _remote_complete {
+    _files
+}
+
+function _dpmgr_download {
+    _arguments \
+        "--repeat=[Repat the <message> any number of times]"
+}
+
+function _dpmgr_tree {
+    _arguments \
+        "--repeat=[Repat the <message> any number of times]"
+}
+
+function _dpmgr_delete {
+    _arguments \
+        "--repeat=[Repat the <message> any number of times]"
+}
+
+function _dpmgr_mkdir {
+    _arguments \
+        "--repeat=[Repat the <message> any number of times]"
+}
+
+function _dpmgr_sync {
+    _arguments \
+        "--repeat=[Repat the <message> any number of times]"
+}
+
+function _dpmgr_syncpairs {
+    _arguments \
+        "--repeat=[Repat the <message> any number of times]"
+}
+
+function _dpmgr_status {
+    _arguments \
+        "--repeat=[Repat the <message> any number of times]"
+}
+
+function _dpmgr_config {
+    _arguments \
+        "--repeat=[Repat the <message> any number of times]"
+}
+
+function _dpmgr_add_wifi {
+    _arguments \
+        "--repeat=[Repat the <message> any number of times]"
+}
+
+function _dpmgr_delete_wifi {
+    _arguments \
+        "--repeat=[Repat the <message> any number of times]"
+}
+
+function _dpmgr_scan_wifi {
+    _arguments \
+        "--repeat=[Repat the <message> any number of times]"
+}
+
+function _dpmgr_list_wifi {
+    _arguments \
+        "--repeat=[Repat the <message> any number of times]"
+}
+
+function _dpmgr_list_templates {
+    _arguments \
+        "--repeat=[Repat the <message> any number of times]"
+}
+
+function _dpmgr_rename_template {
+    _arguments \
+        "--repeat=[Repat the <message> any number of times]"
+}
+
+function _dpmgr_upload_template {
+    _arguments \
+        "--repeat=[Repat the <message> any number of times]"
+}
+
+function _dpmgr_delete_template {
+    _arguments \
+        "--repeat=[Repat the <message> any number of times]"
+}
+
