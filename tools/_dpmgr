@@ -1,5 +1,8 @@
 #compdef _dpmgr dpmgr
 
+CONTENTS_FILE="$HOME/.dpmgr/contents"
+CONTENTS="test/test/t kkk/dss/ddd"
+
 function _dpmgr {
   local context state state_descr line
   typeset -A opt_args
@@ -76,13 +79,15 @@ function _dpmgr_upload {
     "-r[Prefer the remote file in case of a conflict]" \
     "-l[Prefer the local file in case of a conflict]" \
     "-n[Prefer the newer file in case of a conflict]" \
-    "1:local_files:_files" \
-    "2:remote_files:->remote_files" \
-    "*::arg:->args"
+    ":remote_files:->remote_files"
+    # "2: :_files"
+
 
   case $state in
     remote_files)
-      echo "a"
+      local contents
+      contents=( "${(f)mapfile[$CONTENTS_FILE]}" )
+      _multi_parts / contents
     ;;
   esac
 }
