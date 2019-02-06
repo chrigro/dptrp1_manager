@@ -170,7 +170,7 @@ class RemoteTree(object):
         for data in jsondata:
             self._create_path(data["entry_path"])
             self._create_update_node(data)
-        self.save_to_file("~/.dpmgr/contents.json")
+        # self.save_to_file("~/.dpmgr/contents.json")
         self._save_content_list("~/.dpmgr/contents")
 
     def save_to_file(self, path):
@@ -198,7 +198,7 @@ class RemoteTree(object):
         if osp.exists(osp.dirname(path)):
             with open(path, "w") as f:
                 for _, _, node in anytree.render.RenderTree(self._tree):
-                    if isinstance(node, (DPFolderNode, DPDocumentNode)):
+                    if isinstance(node, (DPFolderNode, DPDocumentNode)) and node.is_leaf:
                         f.write("{}\n".format(node.entry_path.split("/", 1)[1]))
 
     def _create_tree_root(self):

@@ -1,7 +1,8 @@
 #compdef _dpmgr dpmgr
 
 CONTENTS_FILE="$HOME/.dpmgr/contents"
-CONTENTS="test/test/t kkk/dss/ddd"
+
+zmodload zsh/mapfile
 
 function _dpmgr {
   local context state state_descr line
