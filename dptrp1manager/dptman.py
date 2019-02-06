@@ -28,6 +28,7 @@ import re
 import socket
 import psutil
 import time
+import requests
 
 import serial
 import anytree
@@ -200,8 +201,13 @@ class DPManager(object):
             client_id = f.readline().strip()
         with open(self._key_file, "rb") as f:
             key = f.read()
-        res = self.dp.authenticate(client_id, key)
+        try:
+            res = self.dp.authenticate(client_id, key)
+        except requests.exceptions.ConnectionError:
+            print("ERROR: Cannot connect to the device. USB connected? Wifi on?")
+            sys.exit(1)
         if res is False:
+            print("ERROR: Cannot authenticate with the device. Is the client ID and key correct?")
             sys.exit(1)
 
     def _check_configpath(self):
@@ -712,6 +718,30 @@ class Synchronizer(FileTransferHandler):
             rp = self._config[pair]["remote_path"]
             pol = self._config[pair]["policy"]
             self.sync_folder(lp, rp, pol)
+
+    def sync_folder_new(self, local, remote, policy="skip"):
+        """Synchronize a local and remote folder recursively.
+
+        Parameters
+        ----------
+        local : string
+            Path to the source
+        remote : string
+            Full path to the folder on the DPT-RP1
+        policy : 'remote_wins', 'local_wins', 'newer', 'skip'
+            Decide what to do if the file is already present.
+
+        """
+        # first compare the current state with the last known one
+        changes_remote = self._cmp_remote2old()
+        changes_local = self._cmp_local2old()
+        # possibly some of the changes have been done on both sides (sync with another computer)
+        # We do not consider files of the same size as changed.
+        changes = self._cmp_local2remote(changes_local, changes_remote)
+        # Ask the user what to do with conflicts.
+        changes_confirmed = self._ask_conflicts(changes)
+        # Do the upload/download/deletion
+        self._process_changes(changes_confirmed)
 
 
 class DPConfig(object):

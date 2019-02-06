@@ -28,11 +28,13 @@ from dptrp1manager import dptman
 class DPTRP1(object):
 
     def __init__(self):
-        self._dp_mgr = dptman.DPManager()
-        self._dp_config = dptman.DPConfig(self._dp_mgr)
-        self._dp_downloader = dptman.Downloader(self._dp_mgr)
-        self._dp_uploader = dptman.Uploader(self._dp_mgr)
-        self._dp_synchronizer = dptman.Synchronizer(self._dp_mgr)
+        # to be filled when connecting
+        self._dp_mgr = None
+        self._dp_config = None
+        self._dp_downloader = None
+        self._dp_uploader = None
+        self._dp_synchronizer = None
+
         # command line parser
         parser = argparse.ArgumentParser(
             description='Command line manager for the Sony DPT-RP1',
@@ -72,6 +74,18 @@ Configuration files, id and key files are stored in ~/.dpmgr.
         method = getattr(self, command)
         method()
 
+    def _connect2device(self):
+        if self._dp_mgr is None:
+            self._dp_mgr = dptman.DPManager()
+        if self._dp_config is None:
+            self._dp_config = dptman.DPConfig(self._dp_mgr)
+        if self._dp_downloader is None:
+            self._dp_downloader = dptman.Downloader(self._dp_mgr)
+        if self._dp_uploader is None:
+            self._dp_uploader = dptman.Uploader(self._dp_mgr)
+        if self._dp_synchronizer is None:
+            self._dp_synchronizer = dptman.Synchronizer(self._dp_mgr)
+
     def upload(self):
         parser = argparse.ArgumentParser(
             description='Upload files (.pdf) or directory contents to the \
@@ -101,6 +115,7 @@ Configuration files, id and key files are stored in ~/.dpmgr.
             policy = 'local_wins'
         elif args.newer:
             policy = 'newer'
+        self._connect2device()
         if args.all:
             self._dp_uploader.upload_recursively(args.local, args.remote, policy)
         elif args.dir:
@@ -137,6 +152,7 @@ Configuration files, id and key files are stored in ~/.dpmgr.
             policy = 'local_wins'
         elif args.newer:
             policy = 'newer'
+        self._connect2device()
         if args.all:
             self._dp_downloader.download_recursively(args.remote, args.local, policy)
         elif args.dir:
@@ -168,6 +184,7 @@ Configuration files, id and key files are stored in ~/.dpmgr.
                 help='Remove all files in the directory, but do not recurse into subdirectories.')
         # decide what to do
         args = parser.parse_args(sys.argv[2:])
+        self._connect2device()
         if args.all:
             self._dp_mgr.rm_allfiles_recursively(args.remote_path)
         elif args.dir:
@@ -180,6 +197,7 @@ Configuration files, id and key files are stored in ~/.dpmgr.
             description='Create a new directory on the digital paper device')
         parser.add_argument('remote_path', help='Path of the new remote directory.')
         args = parser.parse_args(sys.argv[2:])
+        self._connect2device()
         self._dp_mgr.mkdir(args.remote_path)
 
     def sync(self):
@@ -206,12 +224,14 @@ Configuration files, id and key files are stored in ~/.dpmgr.
             policy = 'local_wins'
         elif args.newer:
             policy = 'newer'
+        self._connect2device()
         self._dp_synchronizer.sync_folder(args.local, args.remote, policy)
 
     def syncpairs(self):
         parser = argparse.ArgumentParser(
             description='Synchronize pairs defined in the config \
             file ~/.dpmgr/sync.conf.')
+        self._connect2device()
         self._dp_synchronizer.sync_pairs()
 
     def config(self):
@@ -228,17 +248,20 @@ Configuration files, id and key files are stored in ~/.dpmgr.
                 print('Parameter {} unknown.'.format(args.parameter))
                 sys.exit(1)
             else:
+                self._connect2device()
                 setattr(self._dp_config, args.parameter, args.value)
         elif args.parameter and (not args.value):
             if args.parameter not in parameterlist:
                 print('Parameter {} unknown.'.format(args.parameter))
                 sys.exit(1)
             else:
+                self._connect2device()
                 val = getattr(self._dp_config, args.parameter)
                 print('{}: {}'.format(args.parameter, val))
         elif (not args.parameter) and (not args.value):
             print('---Current configuration---')
             for par in parameterlist:
+                self._connect2device()
                 val = getattr(self._dp_config, par)
                 print('{}: {}'.format(par, val))
         else:
@@ -270,6 +293,7 @@ Configuration files, id and key files are stored in ~/.dpmgr.
                 help='Behind a proxy')
         args = parser.parse_args(sys.argv[2:])
         if not args.security:
+            self._connect2device()
             self._dp_config.add_wifi(args.ssid)
         elif args.security == 'psk':
             if not args.passwd:
@@ -277,8 +301,10 @@ Configuration files, id and key files are stored in ~/.dpmgr.
                 sys.exit(1)
             else:
                 if not args.static:
+                    self._connect2device()
                     self._dp_config.add_wifi(args.ssid, args.security, args.passwd)
                 else:
+                    self._connect2device()
                     self._dp_config.add_wifi(args.ssid, args.security, args.passwd, False,
                             args.ip_address, args.gateway, args.network_mask, args.dns1,
                             args.dns2, args.proxy)
@@ -293,20 +319,24 @@ Configuration files, id and key files are stored in ~/.dpmgr.
         parser.add_argument('-s', '--security', help='The network security (psk).')
         args = parser.parse_args(sys.argv[2:])
         if args.security:
+            self._connect2device()
             self._dp_config.delete_wifi(args.ssid, args.security)
         else:
+            self._connect2device()
             self._dp_config.delete_wifi(args.ssid)
 
     def scan_wifi(self):
         parser = argparse.ArgumentParser(
             description='Scan the available wifi networks.')
         print('---Discovered wifi networks---')
+        self._connect2device()
         pprint(self._dp_config.scan_wifi())
 
     def list_wifi(self):
         parser = argparse.ArgumentParser(
             description='List all known wifi networks.')
         print('---Known wifi networks---')
+        self._connect2device()
         pprint(self._dp_config.list_wifi())
 
     def status(self):
@@ -325,6 +355,7 @@ Configuration files, id and key files are stored in ~/.dpmgr.
                 print('Parameter {} unknown.'.format(args.parameter))
                 sys.exit(1)
             else:
+                self._connect2device()
                 val = getattr(self._dp_config, args.parameter)
                 if args.parameter.startswith('storage'):
                     print('{}: {}'.format(args.parameter, self._sizeof_fmt(val)))
@@ -333,6 +364,7 @@ Configuration files, id and key files are stored in ~/.dpmgr.
         else:
             print('---Current status---')
             for par in parameterlist:
+                self._connect2device()
                 val = getattr(self._dp_config, par)
                 if par.startswith('storage'):
                     print('{}: {}'.format(par, self._sizeof_fmt(val)))
@@ -343,6 +375,7 @@ Configuration files, id and key files are stored in ~/.dpmgr.
         parser = argparse.ArgumentParser(
             description='List all templates.')
         print('---Templates---')
+        self._connect2device()
         pprint(self._dp_config.templates)
 
     def rename_template(self):
@@ -351,6 +384,7 @@ Configuration files, id and key files are stored in ~/.dpmgr.
         parser.add_argument('oldname', help='The old name of the template.')
         parser.add_argument('newname', help='The new name of the template.')
         args = parser.parse_args(sys.argv[2:])
+        self._connect2device()
         self._dp_config.rename_template(args.oldname, args.newname)
 
     def add_template(self):
@@ -359,6 +393,7 @@ Configuration files, id and key files are stored in ~/.dpmgr.
         parser.add_argument('name', help='The name of the template.')
         parser.add_argument('path', help='The local path to the pdf of the template.')
         args = parser.parse_args(sys.argv[2:])
+        self._connect2device()
         self._dp_config.add_template(args.name, args.path)
 
     def delete_template(self):
@@ -366,6 +401,7 @@ Configuration files, id and key files are stored in ~/.dpmgr.
             description='Delete a templates.')
         parser.add_argument('name', help='The name of the template.')
         args = parser.parse_args(sys.argv[2:])
+        self._connect2device()
         self._dp_config.delete_template(args.name)
 
     def _sizeof_fmt(self, num, suffix='B'):
