@@ -250,6 +250,10 @@ class DPManager(object):
         self._remote_tree = None
         self._build_tree()
 
+    @property
+    def remote_tree(self):
+        return self._remote_tree
+
     def print_full_tree(self):
         self._remote_tree.printtree(path, foldersonly=False)
 
@@ -733,8 +737,8 @@ class Synchronizer(FileTransferHandler):
 
         """
         # first compare the current state with the last known one
-        changes_remote = self._cmp_remote2old()
-        changes_local = self._cmp_local2old()
+        changes_remote = self._cmp_remote2old(local, remote)
+        changes_local = self._cmp_local2old(local, remote)
         # possibly some of the changes have been done on both sides (sync with another computer)
         # We do not consider files of the same size as changed.
         changes = self._cmp_local2remote(changes_local, changes_remote)
@@ -742,6 +746,42 @@ class Synchronizer(FileTransferHandler):
         changes_confirmed = self._ask_conflicts(changes)
         # Do the upload/download/deletion
         self._process_changes(changes_confirmed)
+        # Save the new current state as old
+        self._save_sync_state(local, remote)
+
+    def _cmp_remote2old(self, local, remote):
+        """Compare the current remote tree to the last seen one.
+
+        """
+        if self._load_old_remote_state() is not None:
+            pass
+        else:
+            print("WARNING: No old remote state found. Maybe this is an initial sync?")
+
+
+    def _load_old_remote_state(self):
+        pass
+
+    def _save_sync_state(self, local, remote):
+        self._dp_mgr.rebuild_tree()
+        start_node = self._dp_mgr.get_node(remote)
+        _, fn = self._get_syncstate_paths(local)
+        self._dp_mgr.remote_tree.save_to_file(fn, start_node)
+
+    def _load_sync_state_remote(self, local):
+        _, fn = self._get_syncstate_paths(local)
+        subtree = self._dp_mgr.remote_tree.load_from_file(fn)
+        # for pre, _, node in anytree.render.RenderTree(subtree):
+        #     print("{}{}".format(pre, node.entry_name))
+
+    def _load_sync_state_local(self, local):
+        fn, _ = self._get_syncstate_paths(local)
+        # TODO
+
+    def _get_syncstate_paths(self, local):
+        rem = osp.join(osp.expanduser(local), ".dp_syncstate_remote")
+        loc = osp.join(osp.expanduser(local), ".dp_syncstate_local")
+        return loc, rem
 
 
 class DPConfig(object):
@@ -1064,6 +1104,8 @@ def main():
     # uploader.upload_folder_contents('~/Reader/projects/physikjournal', 'Document/Reader/projects/physikjournal', policy='remote_wins')
     # uploader.upload_folder_contents('~/Downloads/test', 'Document/Reader/test', policy='remote_wins')
 
+    synchronizer._save_sync_state("~/work/reader/projects", "Reader/projects")
+    synchronizer._load_sync_state_remote("~/work/reader/projects")
 
 if __name__ == "__main__":
     main()
