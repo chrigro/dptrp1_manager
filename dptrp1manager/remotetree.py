@@ -32,6 +32,9 @@ class DPNode(anytree.NodeMixin):
     is_new : bool
         Is the entry new?
 
+    sync_state : string
+        Used for syncing different trees.
+
     """
 
     def __init__(
@@ -48,6 +51,7 @@ class DPNode(anytree.NodeMixin):
             self.is_new = bool(is_new)
         else:
             self.is_new = None
+        self.sync_state = None
 
     def todatetime(self, datestring):
         if datestring is not None:
@@ -161,18 +165,21 @@ class RemoteTree(object):
 
     """
 
-    def __init__(self):
-        self._tree = None
-        self._resolver = None
+    def __init__(self, tree=None):
+        self._tree = tree
+        self._resolver = anytree.resolver.Resolver("entry_name")
 
     def rebuild_tree(self, jsondata):
         self._tree = self._create_tree_root()
-        self._resolver = anytree.resolver.Resolver("entry_name")
         for data in jsondata:
             self._create_path(data["entry_path"])
             self._create_update_node(data)
         # self.save_to_file("~/.dpmgr/contents.json")
         self._save_content_list("~/.dpmgr/contents")
+
+    @property
+    def tree(self):
+        return self._tree
 
     def save_to_file(self, path, start_node=None):
         path = osp.expanduser(path)
@@ -185,18 +192,6 @@ class RemoteTree(object):
                     exp.write(start_node, f)
         else:
             print("Error saving to disk. Dir {} not existing.".format(osp.dirname(path)))
-
-    def load_from_file(self, path, replace_root = False):
-        path = osp.expanduser(path)
-        if osp.exists(osp.dirname(path)):
-            imp = JsonImporter()
-            with open(path, "r") as f:
-                res = imp.read(f)
-        else:
-            print("Error saving to disk. Dir {} not existing.".format(osp.dirname(path)))
-        if replace_root:
-            self._tree = res
-        return res
 
     def _save_dir_list(self, path):
         path = osp.expanduser(path)
@@ -339,6 +334,18 @@ class RemoteTree(object):
         try:
             searchpath = "/{}".format(path)
             res = self._resolver.get(self._tree.root, searchpath)
-        except anytree.resolver.ChildResolverError:
+        except (anytree.resolver.ChildResolverError, anytree.resolver.ResolverError):
             res = None
         return res
+
+
+def load_from_file(path):
+    path = osp.expanduser(path)
+    if osp.exists(osp.dirname(path)):
+        imp = JsonImporter()
+        with open(path, "r") as f:
+            res = imp.read(f)
+        return RemoteTree(res)
+    else:
+        print("Error saving to disk. Dir {} not existing.".format(osp.dirname(path)))
+

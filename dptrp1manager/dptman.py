@@ -32,7 +32,8 @@ import requests
 
 import serial
 import anytree
-from dptrp1manager import tools, remotetree, mydptrp1
+from anytree import PreOrderIter
+from dptrp1manager import tools, remotetree, mydptrp1, localtree
 
 from pprint import pprint
 
@@ -737,8 +738,9 @@ class Synchronizer(FileTransferHandler):
 
         """
         # first compare the current state with the last known one
-        changes_remote = self._cmp_remote2old(local, remote)
-        changes_local = self._cmp_local2old(local, remote)
+        deletions_rem, tree_rem = self._cmp_remote2old(local, remote)
+        deletions_loc, tree_loc  = self._cmp_local2old(local)
+        # TODO: HERE
         # possibly some of the changes have been done on both sides (sync with another computer)
         # We do not consider files of the same size as changed.
         changes = self._cmp_local2remote(changes_local, changes_remote)
@@ -753,30 +755,103 @@ class Synchronizer(FileTransferHandler):
         """Compare the current remote tree to the last seen one.
 
         """
-        if self._load_old_remote_state() is not None:
-            pass
+        deleted_nodes = []
+
+        oldtree = self._load_sync_state_remote(local)
+        start_node = self._dp_mgr.get_node(remote)
+        curtree = remotetree.RemoteTree(start_node)
+        if oldtree is not None:
+            # Iterate over all nodes in the old tree first
+            for oldnode in PreOrderIter(oldtree.tree):
+                node = curtree.get_node_by_path(oldnode.entry_path)
+                if node is not None:
+                    self._check_node(oldnode, node)
+                    # print(f"Name: {node.entry_name}: {node.sync_state}")
+                else:
+                    # print("NOT FOUND")
+                    deleted_nodes.append(oldnode.entry_path)
+            # Iterate over all nodes in the new tree now to find new items
+            for node in PreOrderIter(curtree.tree):
+                if node.sync_state is None:
+                    # Node not yet checked means it was not present in the old tree.
+                    node.sync_state = "new"
+                    # print(f"Name: {node.entry_name}: {node.sync_state}")
         else:
             print("WARNING: No old remote state found. Maybe this is an initial sync?")
+        return deleted_nodes, curtree
 
+    def _cmp_local2old(self, local):
+        """Compare the current local tree to the last seen one.
 
-    def _load_old_remote_state(self):
-        pass
+        """
+        deleted_nodes = []
+
+        oldtree = self._load_sync_state_local(local)
+        curtree = localtree.LocalTree(local)
+        curtree.rebuild_tree()
+        if oldtree is not None:
+            # Iterate over all nodes in the old tree first
+            for oldnode in PreOrderIter(oldtree.tree):
+                node = curtree.get_node_by_path(oldnode.relpath)
+                if node is not None:
+                    self._check_node(oldnode, node)
+                    # print(f"Name: {node.name}: {node.sync_state}")
+                else:
+                    # print("NOT FOUND")
+                    deleted_nodes.append(oldnode.relpath)
+            # Iterate over all nodes in the new tree now to find new items
+            for node in PreOrderIter(curtree.tree):
+                if node.sync_state is None:
+                    # Node not yet checked means it was not present in the old tree.
+                    node.sync_state = "new"
+                    # print(f"Name: {node.name}: {node.sync_state}")
+        else:
+            print("WARNING: No old remote state found. Maybe this is an initial sync?")
+        return deleted_nodes, curtree
+
+    def _check_node(self, old, new):
+        """Check the status of the nodes.
+
+        """
+        if isinstance(old, (remotetree.DPDocumentNode, localtree.LocalDocumentNode)):
+            # first check the file sizes. We consider the nodes the same when the size matches
+            if old.file_size == new.file_size:
+                new.sync_state="equal"
+            else:
+                # if not of equal size, check the date
+                if new.modified_date > old.modified_date:
+                    new.sync_state="new_newer"
+                else:
+                    new.sync_state="old_newer"
+        else:
+            new.sync_state="equal"
 
     def _save_sync_state(self, local, remote):
+        # the remote tree
         self._dp_mgr.rebuild_tree()
         start_node = self._dp_mgr.get_node(remote)
-        _, fn = self._get_syncstate_paths(local)
-        self._dp_mgr.remote_tree.save_to_file(fn, start_node)
+        fn_loc, fn_rem = self._get_syncstate_paths(local)
+        self._dp_mgr.remote_tree.save_to_file(fn_rem, start_node)
+        # the local tree
+        loctree = localtree.LocalTree(osp.expanduser(local))
+        loctree.rebuild_tree()
+        loctree.save_to_file(fn_loc)
 
     def _load_sync_state_remote(self, local):
         _, fn = self._get_syncstate_paths(local)
-        subtree = self._dp_mgr.remote_tree.load_from_file(fn)
-        # for pre, _, node in anytree.render.RenderTree(subtree):
-        #     print("{}{}".format(pre, node.entry_name))
+        if osp.exists(fn):
+            oldtree = remotetree.load_from_file(fn)
+        else:
+            oldtree = None
+        return oldtree
 
     def _load_sync_state_local(self, local):
         fn, _ = self._get_syncstate_paths(local)
-        # TODO
+        if osp.exists(fn):
+            oldtree = localtree.load_from_file(fn)
+        else:
+            oldtree = None
+        return oldtree
 
     def _get_syncstate_paths(self, local):
         rem = osp.join(osp.expanduser(local), ".dp_syncstate_remote")
@@ -1104,8 +1179,8 @@ def main():
     # uploader.upload_folder_contents('~/Reader/projects/physikjournal', 'Document/Reader/projects/physikjournal', policy='remote_wins')
     # uploader.upload_folder_contents('~/Downloads/test', 'Document/Reader/test', policy='remote_wins')
 
-    synchronizer._save_sync_state("~/work/reader/projects", "Reader/projects")
-    synchronizer._load_sync_state_remote("~/work/reader/projects")
+    synchronizer._cmp_remote2old("~/work/reader/projects", "Reader/projects")
+    synchronizer._cmp_local2old("~/work/reader/projects")
 
 if __name__ == "__main__":
     main()
