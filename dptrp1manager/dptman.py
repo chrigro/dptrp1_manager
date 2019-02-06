@@ -204,10 +204,10 @@ class DPManager(object):
         try:
             res = self.dp.authenticate(client_id, key)
         except requests.exceptions.ConnectionError:
-            print("ERROR: Cannot connect to the device. USB connected? Wifi on?")
+            print("\nERROR: Cannot connect to the device. USB connected? Wifi on?")
             sys.exit(1)
         if res is False:
-            print("ERROR: Cannot authenticate with the device. Is the client ID and key correct?")
+            print("\nERROR: Cannot authenticate with the device. Is the client ID and key correct?")
             sys.exit(1)
 
     def _check_configpath(self):

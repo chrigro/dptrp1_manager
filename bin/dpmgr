@@ -362,9 +362,10 @@ Configuration files, id and key files are stored in ~/.dpmgr.
                 else:
                     print('{}: {}'.format(args.parameter, val))
         else:
+            self._connect2device()
+            print(" ")
             print('---Current status---')
             for par in parameterlist:
-                self._connect2device()
                 val = getattr(self._dp_config, par)
                 if par.startswith('storage'):
                     print('{}: {}'.format(par, self._sizeof_fmt(val)))
