@@ -740,14 +740,9 @@ class Synchronizer(FileTransferHandler):
         # first compare the current state with the last known one
         deletions_rem, tree_rem = self._cmp_remote2old(local, remote)
         deletions_loc, tree_loc  = self._cmp_local2old(local)
-        # TODO: HERE
-        # possibly some of the changes have been done on both sides (sync with another computer)
-        # We do not consider files of the same size as changed.
-        changes = self._cmp_local2remote(changes_local, changes_remote)
-        # Ask the user what to do with conflicts.
-        changes_confirmed = self._ask_conflicts(changes)
-        # Do the upload/download/deletion
-        self._process_changes(changes_confirmed)
+        self._handle_deletions(deletions_loc, deletions_rem)
+        # do the sync by comparing local and remote
+        self._cmp_local2remote(tree_loc, tree_rem)
         # Save the new current state as old
         self._save_sync_state(local, remote)
 
@@ -755,7 +750,7 @@ class Synchronizer(FileTransferHandler):
         """Compare the current remote tree to the last seen one.
 
         """
-        deleted_nodes = []
+        deleted_nodes = {"documents": [], "folders": []}
 
         oldtree = self._load_sync_state_remote(local)
         start_node = self._dp_mgr.get_node(remote)
@@ -769,7 +764,10 @@ class Synchronizer(FileTransferHandler):
                     # print(f"Name: {node.entry_name}: {node.sync_state}")
                 else:
                     # print("NOT FOUND")
-                    deleted_nodes.append(oldnode.entry_path)
+                    if isinstance(oldnode, remotetree.DPDocumentNode):
+                        deleted_nodes["documents"].append(oldnode.entry_path)
+                    else:
+                        deleted_nodes["folders"].append(oldnode.entry_path)
             # Iterate over all nodes in the new tree now to find new items
             for node in PreOrderIter(curtree.tree):
                 if node.sync_state is None:
@@ -784,7 +782,7 @@ class Synchronizer(FileTransferHandler):
         """Compare the current local tree to the last seen one.
 
         """
-        deleted_nodes = []
+        deleted_nodes = {"documents": [], "folders": []}
 
         oldtree = self._load_sync_state_local(local)
         curtree = localtree.LocalTree(local)
@@ -798,7 +796,10 @@ class Synchronizer(FileTransferHandler):
                     # print(f"Name: {node.name}: {node.sync_state}")
                 else:
                     # print("NOT FOUND")
-                    deleted_nodes.append(oldnode.relpath)
+                    if isinstance(oldnode, localtree.LocalDocumentNode):
+                        deleted_nodes["documents"].append(oldnode.abspath)
+                    else:
+                        deleted_nodes["folders"].append(oldnode.abspath)
             # Iterate over all nodes in the new tree now to find new items
             for node in PreOrderIter(curtree.tree):
                 if node.sync_state is None:
@@ -809,6 +810,92 @@ class Synchronizer(FileTransferHandler):
             print("WARNING: No old remote state found. Maybe this is an initial sync?")
         return deleted_nodes, curtree
 
+    def _handle_deletions(self, deletions_loc, deletions_rem):
+        """Handle deletion, i.e. delete locally what was deleted remotely and
+        the other way around.
+
+        """
+        for d in deletions_loc["documents"]:
+            self._dp_mgr.rm_file(d)
+        for d in deletions_loc["folders"]:
+            self._dp_mgr.rm_dir(d)
+        for d in deletions_rem["documents"]:
+            print("Deleting local file {}".format(d))
+            if osp.exists(d):
+                os.remove(d)
+        for d in deletions_rem["folders"]:
+            print("Deleting local folder {}".format(d))
+            if osp.exists(d):
+                os.rmdir(d)
+    
+    def _cmp_local2remote(self, tree_loc, tree_rem):
+        """Compare the changes in the local and remote trees.
+
+        """
+        # loop through all remote nodes
+        for node_rem in PreOrderIter(tree_rem.tree):
+            node_loc = tree_loc.get_node_by_path(tree_rem.entry_path)
+            if node_loc is not None:
+                if not node_rem.file_size == node_loc.file_size:
+                    # local and remote are different
+                    self._handle_changes(node_loc, node_rem)
+            else:
+                # download
+                # TODO
+                pass
+        # loop through all local nodes, upload those not on the remote
+        for node_loc in PreOrderIter(tree_loc.tree):
+            node_rem = tree_rem.get_node_by_path(tree_loc.relpath)
+            if node_rem is None:
+                # upload
+                # TODO
+                pass
+
+    def _handle_changes(self, node_loc, node_rem):
+        """Handle a difference of the local and remote nodes.
+
+        """
+        if node_rem.sync_state is None or node_loc.sync_state is None:
+            # TODO
+            pass
+        elif node_rem.sync_state == "equal" and node_loc.sync_state == "equal":
+            # ask the user (should not happen)
+            print("Neither the local nor the remote node is modified, but the documents are different. WHAT!?")
+            # TODO
+        elif node_rem.sync_state == "modified" and node_loc.sync_state == "modified":
+            # ask the user
+            # TODO
+            pass
+        elif node_rem.sync_state == "new" and node_loc.sync_state == "new":
+            # ask the user
+            # TODO
+            pass
+        elif node_rem.sync_state == "equal" and node_loc.sync_state == "modified":
+            # transfer local to remote
+            # TODO
+            pass
+        elif node_rem.sync_state == "equal" and node_loc.sync_state == "new":
+            # ask the user (should not happen)
+            # TODO
+            pass
+        elif node_rem.sync_state == "modified" and node_loc.sync_state == "equal":
+            # transfer remote to local
+            # TODO
+            pass
+        elif node_rem.sync_state == "new" and node_loc.sync_state == "equal":
+            # ask the user (should not happen)
+            # TODO
+            pass
+        elif node_rem.sync_state == "modified" and node_loc.sync_state == "new":
+            # ask the user (should not happen)
+            # TODO
+            pass
+        elif node_rem.sync_state == "new" and node_loc.sync_state == "modified":
+            # ask the user (should not happen)
+            # TODO
+            pass
+
+
     def _check_node(self, old, new):
         """Check the status of the nodes.
 
@@ -818,11 +905,7 @@ class Synchronizer(FileTransferHandler):
             if old.file_size == new.file_size:
                 new.sync_state="equal"
             else:
-                # if not of equal size, check the date
-                if new.modified_date > old.modified_date:
-                    new.sync_state="new_newer"
-                else:
-                    new.sync_state="old_newer"
+                new.sync_state="modified"
         else:
             new.sync_state="equal"
 
