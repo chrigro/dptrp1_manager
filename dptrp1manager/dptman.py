@@ -856,6 +856,7 @@ class Synchronizer(FileTransferHandler):
 
         """
         if node_rem.sync_state is None or node_loc.sync_state is None:
+            # download, then upload in remote wins mode
             # TODO
             pass
         elif node_rem.sync_state == "equal" and node_loc.sync_state == "equal":
