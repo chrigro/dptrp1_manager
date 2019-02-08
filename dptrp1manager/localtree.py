@@ -89,6 +89,10 @@ class LocalTree(object):
     def tree(self):
         return self._tree
 
+    @property
+    def rootpath(self):
+        return self._rootpath
+
     def _create_tree_root(self):
         """Add the root tree node.
 

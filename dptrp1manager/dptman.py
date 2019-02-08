@@ -208,7 +208,9 @@ class DPManager(object):
             print("\nERROR: Cannot connect to the device. USB connected? Wifi on?")
             sys.exit(1)
         if res is False:
-            print("\nERROR: Cannot authenticate with the device. Is the client ID and key correct?")
+            print(
+                "\nERROR: Cannot authenticate with the device. Is the client ID and key correct?"
+            )
             sys.exit(1)
 
     def _check_configpath(self):
@@ -433,7 +435,7 @@ class FileTransferHandler(object):
 
     def _check_policy(self, policy):
         policies = ("remote_wins", "local_wins", "newer", "skip")
-        if not policy in policies:
+        if policy not in policies:
             print("ERROR: Policy must be one of {}".format(policies))
             return False
         else:
@@ -514,10 +516,7 @@ class Downloader(FileTransferHandler):
         """
         dest = osp.expanduser(dest)
         source = self._dp_mgr.fix_path(source)
-        if (
-            self._check_policy(policy)
-            and self._dp_mgr.node_exists(source)
-        ):
+        if self._check_policy(policy) and self._dp_mgr.node_exists(source):
             src_files = self._dp_mgr.get_folder_contents(source)
             if self._local_path_ok(dest):
                 for f in src_files:
@@ -534,10 +533,7 @@ class Downloader(FileTransferHandler):
         source = self._dp_mgr.fix_path(source)
         if not self._local_path_ok(dest):
             return None
-        if (
-            self._check_policy(policy)
-            and self._dp_mgr.node_exists(source)
-        ):
+        if self._check_policy(policy) and self._dp_mgr.node_exists(source):
             src_nodes = self._dp_mgr.get_folder_contents(source)
             for f in src_nodes:
                 if isinstance(f, remotetree.DPDocumentNode):
@@ -660,10 +656,14 @@ class Uploader(FileTransferHandler):
                     if osp.isdir(osp.join(source, fn))
                 )
                 for d in src_dirs:
-                    if not d.startswith('.') and not "/." in d:  # no hidden directories.
+                    if (
+                        not d.startswith(".") and "/." not in d
+                    ):  # no hidden directories.
                         new_remote_path = dest + "/" + osp.basename(d)
                         new_local_path = d
-                        if not self._dp_mgr.node_exists(new_remote_path, print_error=False):
+                        if not self._dp_mgr.node_exists(
+                            new_remote_path, print_error=False
+                        ):
                             self._dp_mgr.mkdir(new_remote_path)
                             self._dp_mgr.rebuild_tree()
                         self.upload_recursively(new_local_path, new_remote_path, policy)
@@ -697,21 +697,21 @@ class Synchronizer(FileTransferHandler):
         with open(osp.join(CONFIGDIR, "sync.conf"), "w") as f:
             self._config.write(f)
 
-    def sync_folder(self, local, remote, policy="skip"):
-        """Synchronize a local and remote folder recursively.
+    # def sync_folder(self, local, remote, policy="skip"):
+    #     """Synchronize a local and remote folder recursively.
 
-        Parameters
-        ----------
-        local : string
-            Path to the source
-        remote : string
-            Full path to the folder on the DPT-RP1
-        policy : 'remote_wins', 'local_wins', 'newer', 'skip'
-            Decide what to do if the file is already present.
+    #     Parameters
+    #     ----------
+    #     local : string
+    #         Path to the source
+    #     remote : string
+    #         Full path to the folder on the DPT-RP1
+    #     policy : 'remote_wins', 'local_wins', 'newer', 'skip'
+    #         Decide what to do if the file is already present.
 
-        """
-        self._downloader.download_recursively(remote, local, policy)
-        self._uploader.upload_recursively(local, remote, policy)
+    #     """
+    #     self._downloader.download_recursively(remote, local, policy)
+    #     self._uploader.upload_recursively(local, remote, policy)
 
     def sync_pairs(self):
         """Sync the pairs defined in the config file.
@@ -724,7 +724,7 @@ class Synchronizer(FileTransferHandler):
             pol = self._config[pair]["policy"]
             self.sync_folder(lp, rp, pol)
 
-    def sync_folder_new(self, local, remote, policy="skip"):
+    def sync_folder(self, local, remote, policy="skip"):
         """Synchronize a local and remote folder recursively.
 
         Parameters
@@ -739,7 +739,7 @@ class Synchronizer(FileTransferHandler):
         """
         # first compare the current state with the last known one
         deletions_rem, tree_rem = self._cmp_remote2old(local, remote)
-        deletions_loc, tree_loc  = self._cmp_local2old(local)
+        deletions_loc, tree_loc = self._cmp_local2old(local)
         self._handle_deletions(deletions_loc, deletions_rem)
         # do the sync by comparing local and remote
         self._cmp_local2remote(tree_loc, tree_rem)
@@ -827,75 +827,106 @@ class Synchronizer(FileTransferHandler):
             print("Deleting local folder {}".format(d))
             if osp.exists(d):
                 os.rmdir(d)
-    
+
     def _cmp_local2remote(self, tree_loc, tree_rem):
         """Compare the changes in the local and remote trees.
 
         """
         # loop through all remote nodes
         for node_rem in PreOrderIter(tree_rem.tree):
-            node_loc = tree_loc.get_node_by_path(tree_rem.entry_path)
+            print(node_rem.entry_path)
+            tree_loc.printtree(True)
+            node_loc = tree_loc.get_node_by_path(node_rem.entry_path)
             if node_loc is not None:
                 if not node_rem.file_size == node_loc.file_size:
                     # local and remote are different
                     self._handle_changes(node_loc, node_rem)
             else:
                 # download
-                # TODO
-                pass
+                targetpath = os.join(tree_loc.rootpath, node_rem.entry_path)
+                if isinstance(node_rem, remotetree.DPFolderNode):
+                    os.mkdir(targetpath)
+                else:
+                    self._downloader.download_file(
+                        node_rem.entry_path, targetpath, "remote_wins"
+                    )
         # loop through all local nodes, upload those not on the remote
         for node_loc in PreOrderIter(tree_loc.tree):
-            node_rem = tree_rem.get_node_by_path(tree_loc.relpath)
+            node_rem = tree_rem.get_node_by_path(node_loc.relpath)
             if node_rem is None:
                 # upload
-                # TODO
-                pass
+                if isinstance(node_loc, localtree.LocalFolderNode):
+                    self._dp_mgr.mkdir(node_loc.relpath)
+                else:
+                    self._uploader.upload_file(
+                        node_loc.abspath, node_loc.relpath, "local_wins"
+                    )
 
     def _handle_changes(self, node_loc, node_rem):
         """Handle a difference of the local and remote nodes.
 
         """
         if node_rem.sync_state is None or node_loc.sync_state is None:
-            # download, then upload in remote wins mode
-            # TODO
-            pass
+            # download in remote wins mode
+            self._downloader.download_file(
+                node_rem.entry_path, node_loc.abspath, "remote_wins"
+            )
         elif node_rem.sync_state == "equal" and node_loc.sync_state == "equal":
             # ask the user (should not happen)
-            print("Neither the local nor the remote node is modified, but the documents are different. WHAT!?")
-            # TODO
+            print(
+                "Neither the local nor the remote node is modified, but the documents are different. WHAT!?"
+            )
+            self._askuser(node_loc, node_rem)
         elif node_rem.sync_state == "modified" and node_loc.sync_state == "modified":
             # ask the user
-            # TODO
-            pass
+            self._askuser(node_loc, node_rem)
         elif node_rem.sync_state == "new" and node_loc.sync_state == "new":
             # ask the user
-            # TODO
-            pass
+            self._askuser(node_loc, node_rem)
         elif node_rem.sync_state == "equal" and node_loc.sync_state == "modified":
-            # transfer local to remote
-            # TODO
-            pass
+            # upload
+            self._uploader.upload_file(
+                node_loc.abspath, node_rem.entry_path, "local_wins"
+            )
         elif node_rem.sync_state == "equal" and node_loc.sync_state == "new":
             # ask the user (should not happen)
-            # TODO
-            pass
+            self._askuser(node_loc, node_rem)
         elif node_rem.sync_state == "modified" and node_loc.sync_state == "equal":
-            # transfer remote to local
-            # TODO
-            pass
+            # download
+            self._downloader.download_file(
+                node_rem.entry_path, node_loc.abspath, "remote_wins"
+            )
         elif node_rem.sync_state == "new" and node_loc.sync_state == "equal":
             # ask the user (should not happen)
-            # TODO
-            pass
+            self._askuser(node_loc, node_rem)
         elif node_rem.sync_state == "modified" and node_loc.sync_state == "new":
             # ask the user (should not happen)
-            # TODO
-            pass
+            self._askuser(node_loc, node_rem)
         elif node_rem.sync_state == "new" and node_loc.sync_state == "modified":
             # ask the user (should not happen)
-            # TODO
-            pass
+            self._askuser(node_loc, node_rem)
 
+    def _askuser(self, node_loc, node_rem):
+        """Ask the user what to do.
+
+        """
+        message = "Conflict for node {}, reason L:{} R:{}".format(
+            node_loc.relpath, node_loc.sync_state, node_rem.sync_state
+        )
+        question = "Choose which version to keep [l]ocal, [r]emote, [s]kip: "
+        print("")
+        response = ""
+        while response not in ["l", "r", "s"]:
+            print(message)
+            response = str(input(question))
+        if response == "l":
+            self._uploader.upload_file(
+                node_loc.abspath, node_rem.entry_path, "local_wins"
+            )
+        elif response == "r":
+            self._downloader.download_file(
+                node_rem.entry_path, node_loc.abspath, "remote_wins"
+            )
 
     def _check_node(self, old, new):
         """Check the status of the nodes.
@@ -904,11 +935,11 @@ class Synchronizer(FileTransferHandler):
         if isinstance(old, (remotetree.DPDocumentNode, localtree.LocalDocumentNode)):
             # first check the file sizes. We consider the nodes the same when the size matches
             if old.file_size == new.file_size:
-                new.sync_state="equal"
+                new.sync_state = "equal"
             else:
-                new.sync_state="modified"
+                new.sync_state = "modified"
         else:
-            new.sync_state="equal"
+            new.sync_state = "equal"
 
     def _save_sync_state(self, local, remote):
         # the remote tree
@@ -1265,6 +1296,7 @@ def main():
 
     synchronizer._cmp_remote2old("~/work/reader/projects", "Reader/projects")
     synchronizer._cmp_local2old("~/work/reader/projects")
+
 
 if __name__ == "__main__":
     main()
