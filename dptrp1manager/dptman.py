@@ -755,6 +755,7 @@ class Synchronizer(FileTransferHandler):
         oldtree = self._load_sync_state_remote(local)
         start_node = self._dp_mgr.get_node(remote)
         curtree = remotetree.RemoteTree(start_node)
+        print(curtree.tree.entry_path)
         if oldtree is not None:
             # Iterate over all nodes in the old tree first
             for oldnode in PreOrderIter(oldtree.tree):
@@ -836,6 +837,7 @@ class Synchronizer(FileTransferHandler):
         for node_rem in PreOrderIter(tree_rem.tree):
             print(node_rem.entry_path)
             tree_loc.printtree(True)
+            tree_rem.printtree("Document", True)
             node_loc = tree_loc.get_node_by_path(node_rem.entry_path)
             if node_loc is not None:
                 if not node_rem.file_size == node_loc.file_size:
