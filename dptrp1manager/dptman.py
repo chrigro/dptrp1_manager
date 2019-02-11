@@ -329,6 +329,8 @@ class DPManager(object):
             print("Deleting dir {}.".format(path))
             dir_id = self.get_node(path).entry_id
             self._rm_dir(dir_id)
+        else:
+            print("ERROR: Directory {} not found".format(path))
 
     def _rm_dir(self, dir_id):
         self.dp.delete_directory_byid(dir_id)
@@ -342,6 +344,8 @@ class DPManager(object):
             print("Deleting file {}.".format(path))
             file_id = self.get_node(path).entry_id
             self._rm_file(file_id)
+        else:
+            print("ERROR: File {} not found".format(path))
 
     def _rm_file(self, file_id):
         self.dp.delete_document_byid(file_id)
@@ -738,9 +742,9 @@ class Synchronizer(FileTransferHandler):
         deletions_rem, tree_rem = self._cmp_remote2old(local, remote)
         print("Comparing local state to old.")
         deletions_loc, tree_loc = self._cmp_local2old(local)
-        print("Comparing current local and remote states.")
         tree_rem, tree_loc = self._handle_deletions(deletions_loc, deletions_rem, tree_rem, tree_loc)
         # do the sync by comparing local and remote
+        print("Comparing current local and remote states.")
         self._cmp_local2remote(tree_loc, tree_rem)
         # Save the new current state as old
         self._save_sync_state(local, remote)
@@ -822,9 +826,9 @@ class Synchronizer(FileTransferHandler):
                 else:
                     # print("NOT FOUND")
                     if oldnode.entry_type == "document":
-                        deleted_nodes["documents"].append(oldnode.abspath)
+                        deleted_nodes["documents"].append(oldnode.relpath)
                     else:
-                        deleted_nodes["folders"].append(oldnode.abspath)
+                        deleted_nodes["folders"].append(oldnode.relpath)
             # Iterate over all nodes in the new tree now to find new items
             for node in PreOrderIter(curtree.tree):
                 if node.sync_state is None:
@@ -833,6 +837,7 @@ class Synchronizer(FileTransferHandler):
                     # print(f"Name: {node.name}: {node.sync_state}")
         else:
             print("WARNING: No old remote state found. Maybe this is an initial sync?")
+        print(deleted_nodes)
         return deleted_nodes, curtree
 
     def _handle_deletions(self, deletions_loc, deletions_rem, tree_rem, tree_loc):
@@ -841,23 +846,29 @@ class Synchronizer(FileTransferHandler):
 
         """
         for d in deletions_loc["documents"]:
-            self._dp_mgr.rm_file(d)
+            self._dp_mgr.rm_file(self._fix_path4remote(d))
             # delete the node from the tree
             tree_rem.remove_node(self._fix_path4remote(d))
         for d in deletions_loc["folders"]:
-            self._dp_mgr.rm_dir(d)
+            self._dp_mgr.rm_dir(self._fix_path4remote(d))
             # delete the node from the tree
             tree_rem.remove_node(self._fix_path4remote(d))
         for d in deletions_rem["documents"]:
-            print("Deleting local file {}".format(d))
-            if osp.exists(d):
-                os.remove(d)
+            fn = tree_loc.get_node_by_path(self._fix_path4local(d)).abspath
+            print("Deleting local file {}".format(fn))
+            if osp.exists(fn):
+                os.remove(fn)
+            else:
+                print("ERROR: File {} not found".format(fn))
             # delete the node from the tree
             tree_loc.remove_node(self._fix_path4local(d))
         for d in deletions_rem["folders"]:
-            print("Deleting local folder {}".format(d))
-            if osp.exists(d):
-                os.rmdir(d)
+            fn = tree_loc.get_node_by_path(self._fix_path4local(d)).abspath
+            print("Deleting local folder {}".format(fn))
+            if osp.exists(fn):
+                os.rmdir(fn)
+            else:
+                print("ERROR: File {} not found".format(fn))
             # delete the node from the tree
             tree_loc.remove_node(self._fix_path4local(d))
         return tree_rem, tree_loc
