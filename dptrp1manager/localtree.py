@@ -85,6 +85,16 @@ class LocalTree(object):
     def rootpath(self):
         return self._rootpath
 
+    def remove_node(self, path):
+        node = self.get_node_by_path(path)
+        childs = []
+        for n in node.parent.children:
+            if n.abspath == node.abspath:
+                pass
+            else:
+                childs.append(n)
+        node.parent.children = childs
+
     def _create_tree_root(self):
         """Add the root tree node.
 

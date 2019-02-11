@@ -739,7 +739,7 @@ class Synchronizer(FileTransferHandler):
         print("Comparing local state to old.")
         deletions_loc, tree_loc = self._cmp_local2old(local)
         print("Comparing current local and remote states.")
-        self._handle_deletions(deletions_loc, deletions_rem)
+        tree_rem, tree_loc = self._handle_deletions(deletions_loc, deletions_rem, tree_rem, tree_loc)
         # do the sync by comparing local and remote
         self._cmp_local2remote(tree_loc, tree_rem)
         # Save the new current state as old
@@ -835,23 +835,32 @@ class Synchronizer(FileTransferHandler):
             print("WARNING: No old remote state found. Maybe this is an initial sync?")
         return deleted_nodes, curtree
 
-    def _handle_deletions(self, deletions_loc, deletions_rem):
+    def _handle_deletions(self, deletions_loc, deletions_rem, tree_rem, tree_loc):
         """Handle deletion, i.e. delete locally what was deleted remotely and
         the other way around.
 
         """
         for d in deletions_loc["documents"]:
             self._dp_mgr.rm_file(d)
+            # delete the node from the tree
+            tree_rem.remove_node(self._fix_path4remote(d))
         for d in deletions_loc["folders"]:
             self._dp_mgr.rm_dir(d)
+            # delete the node from the tree
+            tree_rem.remove_node(self._fix_path4remote(d))
         for d in deletions_rem["documents"]:
             print("Deleting local file {}".format(d))
             if osp.exists(d):
                 os.remove(d)
+            # delete the node from the tree
+            tree_loc.remove_node(self._fix_path4local(d))
         for d in deletions_rem["folders"]:
             print("Deleting local folder {}".format(d))
             if osp.exists(d):
                 os.rmdir(d)
+            # delete the node from the tree
+            tree_loc.remove_node(self._fix_path4local(d))
+        return tree_rem, tree_loc
 
     def _cmp_local2remote(self, tree_loc, tree_rem):
         """Compare the changes in the local and remote trees.
