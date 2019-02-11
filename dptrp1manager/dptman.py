@@ -573,14 +573,11 @@ class Uploader(FileTransferHandler):
         """
         source = osp.expanduser(source)
         dest = self._dp_mgr.fix_path(dest)
-        if dest.endswith(".pdf"):
-            dest_dir, dest_fn = dest.rsplit("/", maxsplit=1)
-        else:
-            # path is given
-            if not dest.endswith("/"):
-                dest_dir = dest
-            else:
+        if not dest.endswith(".pdf"):
+            if dest.endswith("/"):
                 dest_dir = dest[:-1]
+            dest = "{}/{}".format(dest, osp.basename(source))
+        dest_dir, dest_fn = dest.rsplit("/", maxsplit=1)
         if (
             self._check_policy(policy)
             and self._dp_mgr.node_exists(dest_dir)
