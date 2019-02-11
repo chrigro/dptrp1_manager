@@ -168,6 +168,7 @@ Configuration files, id and key files are stored in ~/.dpmgr.
         parser.add_argument('-a', '--all', action='store_true',
                 help='List all, that is, include also files.')
         args = parser.parse_args(sys.argv[2:])
+        self._connect2device()
         if args.all:
             self._dp_mgr.print_folder_contents(args.remote_path)
         else:
