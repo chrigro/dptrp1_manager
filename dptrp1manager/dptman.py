@@ -464,6 +464,9 @@ class Downloader(FileTransferHandler):
 
         """
         dest = osp.expanduser(dest)
+        if osp.isdir(dest):
+            # take the filename from remote
+            dest = osp.join(dest, source.rsplit("/")[-1])
         source = self._dp_mgr.fix_path(source)
         source_node = self._dp_mgr.get_node(source)
         if (
