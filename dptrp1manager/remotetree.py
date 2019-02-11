@@ -168,11 +168,6 @@ class RemoteTree(object):
     def __init__(self, tree=None):
         self._tree = tree
         self._resolver = anytree.resolver.Resolver("entry_name")
-        if tree is not None:
-            # TODO: respect the root path in get_node_by_path
-            self._root_path = tree.entry_path
-        else:
-            self._root_path = None
 
     def rebuild_tree(self, jsondata):
         self._tree = self._create_tree_root()

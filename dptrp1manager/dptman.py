@@ -683,6 +683,9 @@ class Synchronizer(FileTransferHandler):
         self._uploader = Uploader(dp_mgr)
         self._config = configparser.ConfigParser()
         self._checkconfigfile()
+        # path to the root folders
+        self._local_root = None
+        self._remote_root = None
 
     def _checkconfigfile(self):
         """Check the config file.
@@ -740,6 +743,8 @@ class Synchronizer(FileTransferHandler):
             Decide what to do if the file is already present.
 
         """
+        self._local_root = local
+        self._remote_root = remote
         # first compare the current state with the last known one
         deletions_rem, tree_rem = self._cmp_remote2old(local, remote)
         deletions_loc, tree_loc = self._cmp_local2old(local)
@@ -748,6 +753,18 @@ class Synchronizer(FileTransferHandler):
         self._cmp_local2remote(tree_loc, tree_rem)
         # Save the new current state as old
         self._save_sync_state(local, remote)
+
+    def _fix_remotepath(self, path):
+        """For performance reasons the remote tree is always the full one, not only 
+        the synced subtree. We need to fix paths when finding nodes.
+
+        """
+        rp = osp.relpath(path, self._remote_root)
+        if rp == ".":
+            rp = osp.basename(self._local_root)
+        else:
+            rp = osp.join(osp.basename(self._local_root), rp)
+        return rp
 
     def _cmp_remote2old(self, local, remote):
         """Compare the current remote tree to the last seen one.
@@ -758,7 +775,6 @@ class Synchronizer(FileTransferHandler):
         oldtree = self._load_sync_state_remote(local)
         start_node = self._dp_mgr.get_node(remote)
         curtree = remotetree.RemoteTree(start_node)
-        print(curtree.tree.entry_path)
         if oldtree is not None:
             # Iterate over all nodes in the old tree first
             for oldnode in PreOrderIter(oldtree.tree):
@@ -838,17 +854,16 @@ class Synchronizer(FileTransferHandler):
         """
         # loop through all remote nodes
         for node_rem in PreOrderIter(tree_rem.tree):
-            print(node_rem.entry_path)
-            tree_loc.printtree(True)
-            tree_rem.printtree("Document", True)
-            node_loc = tree_loc.get_node_by_path(node_rem.entry_path)
+            node_loc = tree_loc.get_node_by_path(self._fix_remotepath(node_rem.entry_path))
             if node_loc is not None:
-                if not node_rem.file_size == node_loc.file_size:
-                    # local and remote are different
-                    self._handle_changes(node_loc, node_rem)
+                # Only relevant for documents
+                if not isinstance(node_rem, remotetree.DPFolderNode):
+                    if not node_rem.file_size == node_loc.file_size:
+                        # local and remote are different
+                        self._handle_changes(node_loc, node_rem)
             else:
                 # download
-                targetpath = os.join(tree_loc.rootpath, node_rem.entry_path)
+                targetpath = osp.join(tree_loc.rootpath, node_rem.entry_path)
                 if isinstance(node_rem, remotetree.DPFolderNode):
                     os.mkdir(targetpath)
                 else:
