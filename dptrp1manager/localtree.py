@@ -7,7 +7,7 @@ from datetime import datetime
 
 import anytree
 from anytree.exporter import JsonExporter
-from anytree.importer import JsonImporter
+from anytree.importer import JsonImporter, DictImporter
 
 from dptrp1manager import tools
 
@@ -27,44 +27,25 @@ class LocalNode(anytree.NodeMixin):
         The name of the node.
     abspath : string
         Absolute path on the file system
+    entry_type : string
+        `document` or `folder`
+    file_size : int (default None)
+        File size in bytes
+    modified_date : datetime (default None)
+        Last modified date
 
     sync_state : string
         Used for syncing different trees.
 
     """
 
-    def __init__(self, parent, relpath, name, abspath):
+    def __init__(self, parent, relpath, name, abspath, entry_type, file_size=None, modified_date=None):
         super().__init__()
         self.parent = parent
         self.relpath = relpath
         self.name = name
         self.abspath = abspath
         self.sync_state = None
-
-
-class LocalFolderNode(LocalNode):
-    """Representation of a local folder node.
-
-    """
-
-    def __init__(self, parent, relpath, name, abspath):
-        super().__init__(parent, relpath, name, abspath)
-
-
-class LocalDocumentNode(LocalNode):
-    """Representation of a document node.
-
-    Attributes
-    ----------
-    file_size : int
-        File size in bytes
-    modified_date : datetime
-        Last modified date
-
-    """
-
-    def __init__(self, parent, relpath, name, abspath, file_size, modified_date):
-        super().__init__(parent, relpath, name, abspath)
         self.file_size = file_size
         self.modified_date = modified_date
 
@@ -111,8 +92,8 @@ class LocalTree(object):
                 parentnode = self.get_node_by_path(parentpath)
                 name = osp.basename(path)
                 relpath = osp.relpath(path, osp.dirname(self._rootpath))
-                LocalFolderNode(
-                    parent=parentnode, name=name, relpath=relpath, abspath=path
+                LocalNode(
+                    parent=parentnode, name=name, relpath=relpath, abspath=path, entry_type="folder"
                 )
             for name in files:
                 if osp.splitext(name)[1].lower() == ".pdf":
@@ -122,11 +103,12 @@ class LocalTree(object):
                     abspath = osp.join(path, name)
                     modtime = datetime.fromtimestamp(int(osp.getmtime(abspath)))
                     fsize = osp.getsize(abspath)
-                    LocalDocumentNode(
+                    LocalNode(
                         parent=parentnode,
                         name=name,
                         relpath=relpath,
                         abspath=abspath,
+                        entry_type="document"
                         file_size=fsize,
                         modified_date=modtime,
                     )
@@ -148,14 +130,14 @@ class LocalTree(object):
             if not foldersonly:
                 print("{}{}".format(pre, node.name))
             else:
-                if not isinstance(node, LocalDocumentNode):
+                if node.entry_type == "folder":
                     print("{}{}".format(pre, node.name))
 
     def print_folder_contents(self, path):
         foldernode = self.get_node_by_path(path)
         if foldernode is not None:
             for pre, _, node in anytree.render.RenderTree(foldernode):
-                if isinstance(node, LocalDocumentNode):
+                if node.entry_type == "document":
                     print(
                         "{0}[{1: <7}][{2:}] {3}".format(
                             pre, self._sizeof_fmt(node.file_size), node.modified_date, node.name
@@ -186,7 +168,8 @@ class LocalTree(object):
 def load_from_file(path):
     path = osp.expanduser(path)
     if osp.exists(osp.dirname(path)):
-        imp = JsonImporter()
+        dict_imp = DictImporter(nodecls=LocalNode)
+        imp = JsonImporter(dictimporter=dict_imp)
         with open(path, "r") as f:
             res = imp.read(f)
         return LocalTree(osp.dirname(path), res)
