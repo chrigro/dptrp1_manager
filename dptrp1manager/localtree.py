@@ -114,22 +114,22 @@ class LocalTree(object):
                 LocalFolderNode(
                     parent=parentnode, name=name, relpath=relpath, abspath=path
                 )
-                for name in files:
-                    if osp.splitext(name)[1].lower() == ".pdf":
-                        parentpath = osp.relpath(path, osp.dirname(self._rootpath))
-                        parentnode = self.get_node_by_path(parentpath)
-                        relpath = osp.join(parentpath, name)
-                        abspath = osp.join(path, name)
-                        modtime = datetime.fromtimestamp(int(osp.getmtime(abspath)))
-                        fsize = osp.getsize(abspath)
-                        LocalDocumentNode(
-                            parent=parentnode,
-                            name=name,
-                            relpath=relpath,
-                            abspath=abspath,
-                            file_size=fsize,
-                            modified_date=modtime,
-                        )
+            for name in files:
+                if osp.splitext(name)[1].lower() == ".pdf":
+                    parentpath = osp.relpath(path, osp.dirname(self._rootpath))
+                    parentnode = self.get_node_by_path(parentpath)
+                    relpath = osp.join(parentpath, name)
+                    abspath = osp.join(path, name)
+                    modtime = datetime.fromtimestamp(int(osp.getmtime(abspath)))
+                    fsize = osp.getsize(abspath)
+                    LocalDocumentNode(
+                        parent=parentnode,
+                        name=name,
+                        relpath=relpath,
+                        abspath=abspath,
+                        file_size=fsize,
+                        modified_date=modtime,
+                    )
 
     def save_to_file(self, path, start_node=None):
         path = osp.expanduser(path)

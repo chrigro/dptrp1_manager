@@ -707,34 +707,20 @@ class Synchronizer(FileTransferHandler):
         with open(osp.join(CONFIGDIR, "sync.conf"), "w") as f:
             self._config.write(f)
 
-    # def sync_folder(self, local, remote, policy="skip"):
-    #     """Synchronize a local and remote folder recursively.
-
-    #     Parameters
-    #     ----------
-    #     local : string
-    #         Path to the source
-    #     remote : string
-    #         Full path to the folder on the DPT-RP1
-    #     policy : 'remote_wins', 'local_wins', 'newer', 'skip'
-    #         Decide what to do if the file is already present.
-
-    #     """
-    #     self._downloader.download_recursively(remote, local, policy)
-    #     self._uploader.upload_recursively(local, remote, policy)
-
     def sync_pairs(self):
         """Sync the pairs defined in the config file.
 
         """
         for pair in self._config.sections():
+            print("")
             print("---Staring to sync pair {}---".format(pair))
             lp = self._config[pair]["local_path"]
             rp = self._config[pair]["remote_path"]
-            pol = self._config[pair]["policy"]
-            self.sync_folder(lp, rp, pol)
+            print("---Local root is  {}---".format(lp))
+            print("---Remote root is {}---".format(rp))
+            self.sync_folder(lp, rp)
 
-    def sync_folder(self, local, remote, policy="skip"):
+    def sync_folder(self, local, remote):
         """Synchronize a local and remote folder recursively.
 
         Parameters
@@ -743,22 +729,23 @@ class Synchronizer(FileTransferHandler):
             Path to the source
         remote : string
             Full path to the folder on the DPT-RP1
-        policy : 'remote_wins', 'local_wins', 'newer', 'skip'
-            Decide what to do if the file is already present.
 
         """
-        self._local_root = local
+        self._local_root = osp.abspath(osp.expanduser(local))
         self._remote_root = remote
         # first compare the current state with the last known one
+        print("Comparing remote state to old.")
         deletions_rem, tree_rem = self._cmp_remote2old(local, remote)
+        print("Comparing local state to old.")
         deletions_loc, tree_loc = self._cmp_local2old(local)
+        print("Comparing current local and remote states.")
         self._handle_deletions(deletions_loc, deletions_rem)
         # do the sync by comparing local and remote
         self._cmp_local2remote(tree_loc, tree_rem)
         # Save the new current state as old
         self._save_sync_state(local, remote)
 
-    def _fix_remotepath(self, path):
+    def _fix_path4local(self, path):
         """For performance reasons the remote tree is always the full one, not only 
         the synced subtree. We need to fix paths when finding nodes.
 
@@ -769,6 +756,17 @@ class Synchronizer(FileTransferHandler):
         else:
             rp = osp.join(osp.basename(self._local_root), rp)
         return rp
+
+    def _fix_path4remote(self, path):
+        """The opposite of fix_path4local
+
+        """
+        sppath = path.split("/", 1)
+        if len(sppath) > 1:
+            path = "{}/{}".format(self._remote_root, sppath[1])
+        else:
+            path = self._remote_root
+        return path
 
     def _cmp_remote2old(self, local, remote):
         """Compare the current remote tree to the last seen one.
@@ -858,7 +856,7 @@ class Synchronizer(FileTransferHandler):
         """
         # loop through all remote nodes
         for node_rem in PreOrderIter(tree_rem.tree):
-            node_loc = tree_loc.get_node_by_path(self._fix_remotepath(node_rem.entry_path))
+            node_loc = tree_loc.get_node_by_path(self._fix_path4local(node_rem.entry_path))
             if node_loc is not None:
                 # Only relevant for documents
                 if not isinstance(node_rem, remotetree.DPFolderNode):
@@ -867,7 +865,8 @@ class Synchronizer(FileTransferHandler):
                         self._handle_changes(node_loc, node_rem)
             else:
                 # download
-                targetpath = osp.join(tree_loc.rootpath, node_rem.entry_path)
+                targetpath = osp.join(osp.dirname(self._local_root), self._fix_path4local(node_rem.entry_path))
+                print("Local node not found. Attempting download of {}".format(targetpath))
                 if isinstance(node_rem, remotetree.DPFolderNode):
                     os.mkdir(targetpath)
                 else:
@@ -876,14 +875,16 @@ class Synchronizer(FileTransferHandler):
                     )
         # loop through all local nodes, upload those not on the remote
         for node_loc in PreOrderIter(tree_loc.tree):
-            node_rem = tree_rem.get_node_by_path(node_loc.relpath)
+            node_rem = tree_rem.get_node_by_path(self._fix_path4remote(node_loc.relpath))
             if node_rem is None:
                 # upload
+                targetpath = self._fix_path4remote(node_loc.relpath)
+                print("Remote node not found. Attempting upload of {}".format(targetpath))
                 if isinstance(node_loc, localtree.LocalFolderNode):
-                    self._dp_mgr.mkdir(node_loc.relpath)
+                    self._dp_mgr.mkdir(targetpath)
                 else:
                     self._uploader.upload_file(
-                        node_loc.abspath, node_loc.relpath, "local_wins"
+                        node_loc.abspath, targetpath, "local_wins"
                     )
 
     def _handle_changes(self, node_loc, node_rem):
@@ -892,6 +893,7 @@ class Synchronizer(FileTransferHandler):
         """
         if node_rem.sync_state is None or node_loc.sync_state is None:
             # download in remote wins mode
+            print("Attempting download of {} to {}".format(node_rem.entry_path, node_loc.abspath))
             self._downloader.download_file(
                 node_rem.entry_path, node_loc.abspath, "remote_wins"
             )
@@ -909,6 +911,7 @@ class Synchronizer(FileTransferHandler):
             self._askuser(node_loc, node_rem)
         elif node_rem.sync_state == "equal" and node_loc.sync_state == "modified":
             # upload
+            print("Attempting upload of {} to {}".format(node_loc.abspath, node_rem.entry_path))
             self._uploader.upload_file(
                 node_loc.abspath, node_rem.entry_path, "local_wins"
             )
@@ -917,6 +920,7 @@ class Synchronizer(FileTransferHandler):
             self._askuser(node_loc, node_rem)
         elif node_rem.sync_state == "modified" and node_loc.sync_state == "equal":
             # download
+            print("Attempting download of {} to {}".format(node_rem.entry_path, node_loc.abspath))
             self._downloader.download_file(
                 node_rem.entry_path, node_loc.abspath, "remote_wins"
             )
