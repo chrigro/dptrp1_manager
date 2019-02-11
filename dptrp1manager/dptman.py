@@ -353,7 +353,7 @@ class DPManager(object):
         path = self.fix_path(path)
         if self.node_exists(path):
             n = self.get_node(path)
-            if n.entry_type="document":
+            if n.entry_type == "document":
                 self.rm_file(path)
             else:
                 self.rm_dir(path)
@@ -367,7 +367,7 @@ class DPManager(object):
         if self.node_exists(path):
             files = self.get_folder_contents(path)
             for f in files:
-                if f.entry_type="document":
+                if f.entry_type == "document":
                     self.rm_file(f.entry_path)
 
     def rm_allfiles_recursively(self, path):
@@ -379,7 +379,7 @@ class DPManager(object):
         if self.node_exists(path):
             files = self.get_folder_contents(path)
             for f in files:
-                if f.entry_type="document":
+                if f.entry_type == "document":
                     self.rm_file(f.entry_path)
                 else:
                     self.rm_allfiles_recursively(f.entry_path)
@@ -473,7 +473,7 @@ class Downloader(FileTransferHandler):
             self._check_policy(policy)
             and self._dp_mgr.node_exists(source)
             and self._local_path_ok(osp.dirname(dest))
-            and source_node.entry_type="document"
+            and source_node.entry_type == "document"
         ):
             do_transfer = True
             if osp.exists(dest):
@@ -523,7 +523,7 @@ class Downloader(FileTransferHandler):
             src_files = self._dp_mgr.get_folder_contents(source)
             if self._local_path_ok(dest):
                 for f in src_files:
-                    if f.entry_type="document":
+                    if f.entry_type == "document":
                         self.download_file(
                             f.entry_path, osp.join(dest, f.entry_name), policy
                         )
@@ -539,7 +539,7 @@ class Downloader(FileTransferHandler):
         if self._check_policy(policy) and self._dp_mgr.node_exists(source):
             src_nodes = self._dp_mgr.get_folder_contents(source)
             for f in src_nodes:
-                if f.entry_type="document":
+                if f.entry_type == "document":
                     self.download_file(
                         f.entry_path, osp.join(dest, f.entry_name), policy
                     )
@@ -775,7 +775,6 @@ class Synchronizer(FileTransferHandler):
         deleted_nodes = {"documents": [], "folders": []}
 
         oldtree = self._load_sync_state_remote(local)
-        oldtree.printtree("Note", False)
         start_node = self._dp_mgr.get_node(remote)
         curtree = remotetree.RemoteTree(start_node)
         if oldtree is not None:
@@ -822,7 +821,7 @@ class Synchronizer(FileTransferHandler):
                     # print(f"Name: {node.name}: {node.sync_state}")
                 else:
                     # print("NOT FOUND")
-                    if oldnode.entry_type="document":
+                    if oldnode.entry_type == "document":
                         deleted_nodes["documents"].append(oldnode.abspath)
                     else:
                         deleted_nodes["folders"].append(oldnode.abspath)
@@ -860,18 +859,25 @@ class Synchronizer(FileTransferHandler):
         """
         # loop through all remote nodes
         for node_rem in PreOrderIter(tree_rem.tree):
-            node_loc = tree_loc.get_node_by_path(self._fix_path4local(node_rem.entry_path))
+            node_loc = tree_loc.get_node_by_path(
+                self._fix_path4local(node_rem.entry_path)
+            )
             if node_loc is not None:
                 # Only relevant for documents
-                if node_rem.entry_type="document":
+                if node_rem.entry_type == "document":
                     if not node_rem.file_size == node_loc.file_size:
                         # local and remote are different
                         self._handle_changes(node_loc, node_rem)
             else:
                 # download
-                targetpath = osp.join(osp.dirname(self._local_root), self._fix_path4local(node_rem.entry_path))
-                print("Local node not found. Attempting download of {}".format(targetpath))
-                if node_rem.entry_type="folder":
+                targetpath = osp.join(
+                    osp.dirname(self._local_root),
+                    self._fix_path4local(node_rem.entry_path),
+                )
+                print(
+                    "Local node not found. Attempting download of {}".format(targetpath)
+                )
+                if node_rem.entry_type == "folder":
                     os.mkdir(targetpath)
                 else:
                     self._downloader.download_file(
@@ -879,12 +885,16 @@ class Synchronizer(FileTransferHandler):
                     )
         # loop through all local nodes, upload those not on the remote
         for node_loc in PreOrderIter(tree_loc.tree):
-            node_rem = tree_rem.get_node_by_path(self._fix_path4remote(node_loc.relpath))
+            node_rem = tree_rem.get_node_by_path(
+                self._fix_path4remote(node_loc.relpath)
+            )
             if node_rem is None:
                 # upload
                 targetpath = self._fix_path4remote(node_loc.relpath)
-                print("Remote node not found. Attempting upload of {}".format(targetpath))
-                if node_loc.entry_type="folder":
+                print(
+                    "Remote node not found. Attempting upload of {}".format(targetpath)
+                )
+                if node_loc.entry_type == "folder":
                     self._dp_mgr.mkdir(targetpath)
                 else:
                     self._uploader.upload_file(
@@ -897,7 +907,11 @@ class Synchronizer(FileTransferHandler):
         """
         if node_rem.sync_state is None or node_loc.sync_state is None:
             # download in remote wins mode
-            print("Attempting download of {} to {}".format(node_rem.entry_path, node_loc.abspath))
+            print(
+                "Attempting download of {} to {}".format(
+                    node_rem.entry_path, node_loc.abspath
+                )
+            )
             self._downloader.download_file(
                 node_rem.entry_path, node_loc.abspath, "remote_wins"
             )
@@ -915,7 +929,11 @@ class Synchronizer(FileTransferHandler):
             self._askuser(node_loc, node_rem)
         elif node_rem.sync_state == "equal" and node_loc.sync_state == "modified":
             # upload
-            print("Attempting upload of {} to {}".format(node_loc.abspath, node_rem.entry_path))
+            print(
+                "Attempting upload of {} to {}".format(
+                    node_loc.abspath, node_rem.entry_path
+                )
+            )
             self._uploader.upload_file(
                 node_loc.abspath, node_rem.entry_path, "local_wins"
             )
@@ -924,7 +942,11 @@ class Synchronizer(FileTransferHandler):
             self._askuser(node_loc, node_rem)
         elif node_rem.sync_state == "modified" and node_loc.sync_state == "equal":
             # download
-            print("Attempting download of {} to {}".format(node_rem.entry_path, node_loc.abspath))
+            print(
+                "Attempting download of {} to {}".format(
+                    node_rem.entry_path, node_loc.abspath
+                )
+            )
             self._downloader.download_file(
                 node_rem.entry_path, node_loc.abspath, "remote_wins"
             )
@@ -964,7 +986,7 @@ class Synchronizer(FileTransferHandler):
         """Check the status of the nodes.
 
         """
-        if old.entry_type="document":
+        if old.entry_type == "document":
             # first check the file sizes. We consider the nodes the same when the size matches
             if old.file_size == new.file_size:
                 new.sync_state = "equal"

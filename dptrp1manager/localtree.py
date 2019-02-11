@@ -39,15 +39,26 @@ class LocalNode(anytree.NodeMixin):
 
     """
 
-    def __init__(self, parent, relpath, name, abspath, entry_type, file_size=None, modified_date=None):
+    def __init__(
+        self,
+        parent,
+        relpath,
+        name,
+        abspath,
+        entry_type,
+        file_size=None,
+        modified_date=None,
+        sync_state=None,
+    ):
         super().__init__()
         self.parent = parent
         self.relpath = relpath
         self.name = name
         self.abspath = abspath
-        self.sync_state = None
+        self.entry_type = entry_type
         self.file_size = file_size
         self.modified_date = modified_date
+        self.sync_state = sync_state
 
 
 class LocalTree(object):
@@ -79,7 +90,7 @@ class LocalTree(object):
 
         """
         bn = osp.basename(self._rootpath)
-        rootnode = LocalNode(parent=None, name=bn, relpath=bn, abspath=self._rootpath)
+        rootnode = LocalNode(parent=None, name=bn, relpath=bn, abspath=self._rootpath, entry_type="folder")
         return rootnode
 
     def _create_tree(self):
@@ -93,7 +104,11 @@ class LocalTree(object):
                 name = osp.basename(path)
                 relpath = osp.relpath(path, osp.dirname(self._rootpath))
                 LocalNode(
-                    parent=parentnode, name=name, relpath=relpath, abspath=path, entry_type="folder"
+                    parent=parentnode,
+                    name=name,
+                    relpath=relpath,
+                    abspath=path,
+                    entry_type="folder",
                 )
             for name in files:
                 if osp.splitext(name)[1].lower() == ".pdf":
@@ -108,7 +123,7 @@ class LocalTree(object):
                         name=name,
                         relpath=relpath,
                         abspath=abspath,
-                        entry_type="document"
+                        entry_type="document",
                         file_size=fsize,
                         modified_date=modtime,
                     )
@@ -123,7 +138,9 @@ class LocalTree(object):
                 else:
                     exp.write(start_node, f)
         else:
-            print("Error saving to disk. Dir {} not existing.".format(osp.dirname(path)))
+            print(
+                "Error saving to disk. Dir {} not existing.".format(osp.dirname(path))
+            )
 
     def printtree(self, foldersonly):
         for pre, _, node in anytree.render.RenderTree(self._tree):
@@ -140,7 +157,10 @@ class LocalTree(object):
                 if node.entry_type == "document":
                     print(
                         "{0}[{1: <7}][{2:}] {3}".format(
-                            pre, self._sizeof_fmt(node.file_size), node.modified_date, node.name
+                            pre,
+                            self._sizeof_fmt(node.file_size),
+                            node.modified_date,
+                            node.name,
                         )
                     )
                 else:
@@ -169,13 +189,12 @@ def load_from_file(path):
     path = osp.expanduser(path)
     if osp.exists(osp.dirname(path)):
         dict_imp = DictImporter(nodecls=LocalNode)
-        imp = JsonImporter(dictimporter=dict_imp)
+        imp = JsonImporter(dictimporter=dict_imp, object_hook=tools.object_hook)
         with open(path, "r") as f:
             res = imp.read(f)
         return LocalTree(osp.dirname(path), res)
     else:
         print("Error saving to disk. Dir {} not existing.".format(osp.dirname(path)))
-
 
 
 if __name__ == "__main__":

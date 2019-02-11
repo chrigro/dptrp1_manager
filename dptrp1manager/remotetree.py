@@ -60,7 +60,16 @@ class DPNode(anytree.NodeMixin):
     """
 
     def __init__(
-        self, parent, entry_path, entry_name, entry_type, entry_id, created_date, is_new, document_source=None, parent_folder_id=None, 
+        self,
+        parent,
+        entry_path,
+        entry_name,
+        entry_type,
+        entry_id,
+        created_date,
+        is_new,
+        document_source=None,
+        parent_folder_id=None,
         author=None,
         current_page=None,
         document_type=None,
@@ -69,7 +78,8 @@ class DPNode(anytree.NodeMixin):
         mime_type=None,
         modified_date=None,
         title=None,
-        total_page=None
+        total_page=None,
+        sync_state=None,
     ):
         super().__init__()
         self.parent = parent
@@ -103,11 +113,11 @@ class DPNode(anytree.NodeMixin):
         else:
             self.total_page = None
 
-        self.sync_state = None
+        self.sync_state = sync_state
 
     def todatetime(self, datestring):
         if datestring is not None:
-            if isinstance(datestring, datetime.datetime):
+            if isinstance(datestring, datetime):
                 res = datestring
             else:
                 res = datetime.strptime(datestring, "%Y-%m-%dT%H:%M:%SZ")
@@ -147,14 +157,16 @@ class RemoteTree(object):
                 else:
                     exp.write(start_node, f)
         else:
-            print("Error saving to disk. Dir {} not existing.".format(osp.dirname(path)))
+            print(
+                "Error saving to disk. Dir {} not existing.".format(osp.dirname(path))
+            )
 
     def _save_dir_list(self, path):
         path = osp.expanduser(path)
         if osp.exists(osp.dirname(path)):
             with open(path, "w") as f:
                 for _, _, node in anytree.render.RenderTree(self._tree):
-                    if node.entry_type="folder":
+                    if node.entry_type == "folder":
                         f.write("{}\n".format(node.entry_path.split("/", 1)[1]))
 
     def _save_content_list(self, path):
@@ -260,17 +272,20 @@ class RemoteTree(object):
                 if not foldersonly:
                     print("{}{}".format(pre, node.entry_name))
                 else:
-                    if node.entry_type="folder":
+                    if node.entry_type == "folder":
                         print("{}{}".format(pre, node.entry_name))
 
     def print_folder_contents(self, path):
         foldernode = self.get_node_by_path(path)
         if foldernode is not None:
             for pre, _, node in anytree.render.RenderTree(foldernode):
-                if node.entry_type="document":
+                if node.entry_type == "document":
                     print(
                         "{0}[{1: <7}][{2:}] {3}".format(
-                            pre, self._sizeof_fmt(node.file_size), node.modified_date, node.entry_name
+                            pre,
+                            self._sizeof_fmt(node.file_size),
+                            node.modified_date,
+                            node.entry_name,
                         )
                     )
                 else:
@@ -299,11 +314,9 @@ def load_from_file(path):
     path = osp.expanduser(path)
     if osp.exists(osp.dirname(path)):
         dict_imp = DictImporter(nodecls=DPNode)
-        imp = JsonImporter(dictimporter=dict_imp)
+        imp = JsonImporter(dictimporter=dict_imp, object_hook=tools.object_hook)
         with open(path, "r") as f:
             res = imp.read(f)
         return RemoteTree(res)
     else:
         print("Error saving to disk. Dir {} not existing.".format(osp.dirname(path)))
-
-
