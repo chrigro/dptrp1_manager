@@ -775,6 +775,7 @@ class Synchronizer(FileTransferHandler):
         deleted_nodes = {"documents": [], "folders": []}
 
         oldtree = self._load_sync_state_remote(local)
+        oldtree.printtree("Note", False)
         start_node = self._dp_mgr.get_node(remote)
         curtree = remotetree.RemoteTree(start_node)
         if oldtree is not None:
@@ -786,7 +787,7 @@ class Synchronizer(FileTransferHandler):
                     # print(f"Name: {node.entry_name}: {node.sync_state}")
                 else:
                     # print("NOT FOUND")
-                    if isinstance(oldnode, remotetree.DPDocumentNode):
+                    if oldnode.entry_type == "document":
                         deleted_nodes["documents"].append(oldnode.entry_path)
                     else:
                         deleted_nodes["folders"].append(oldnode.entry_path)
@@ -798,7 +799,10 @@ class Synchronizer(FileTransferHandler):
                     # print(f"Name: {node.entry_name}: {node.sync_state}")
         else:
             print("WARNING: No old remote state found. Maybe this is an initial sync?")
+        print(deleted_nodes)
         return deleted_nodes, curtree
+
+    # TODO: ISINSTANCE CHECKS NOT WORKING FOR TREES LOADED FROM FILE -> MAKE ALL NODES THE SAME TYPE (ANYTREE)
 
     def _cmp_local2old(self, local):
         """Compare the current local tree to the last seen one.
