@@ -264,14 +264,14 @@ class RemoteTree(object):
                 entry_id=data["entry_id"],
                 created_date=data["created_date"],
                 is_new=data["is_new"],
-                author=data["author"],
+                author=data.get("author", None),
                 current_page=data["current_page"],
                 document_type=data["document_type"],
                 file_revision=data["file_revision"],
                 file_size=data["file_size"],
                 mime_type=data["mime_type"],
                 modified_date=data["modified_date"],
-                title=data["title"],
+                title=data.get("title", None),
                 total_page=data["total_page"],
             )
 
