@@ -241,6 +241,12 @@ Configuration files, id and key files are stored in ~/.dpmgr.
             action="store_true",
             help="Remove all files in the directory, but do not recurse into subdirectories.",
         )
+        group1.add_argument(
+            "-r",
+            "--recursively",
+            action="store_true",
+            help="Remove all files and subdirectories in the directory and the directory itself.",
+        )
         # decide what to do
         args = parser.parse_args(sys.argv[2:])
         self._connect2device()
@@ -248,6 +254,8 @@ Configuration files, id and key files are stored in ~/.dpmgr.
             self._dp_mgr.rm_allfiles_recursively(args.remote_path)
         elif args.dir:
             self._dp_mgr.rm_allfiles(args.remote_path)
+        elif args.recursively:
+            self._dp_mgr.rm_all_recursively(args.remote_path)
         else:
             self._dp_mgr.rm(args.remote_path)
 

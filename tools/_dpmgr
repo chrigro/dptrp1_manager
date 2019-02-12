@@ -140,6 +140,7 @@ function _dpmgr_delete {
 
   _arguments -C \
     "-h[Show help information]" \
+    "-r[Delete all files and subdirectories incl. the directory itself]" \
     "-a[Delete all files and subdirectories]" \
     "-d[Delete all files, don't touch subdirectories]" \
     ":remote:->remote_files"

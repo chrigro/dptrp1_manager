@@ -387,6 +387,14 @@ class DPManager(object):
                     self.rm_allfiles_recursively(f.entry_path)
                     self.rm_dir(f.entry_path)
 
+    def rm_all_recursively(self, path):
+        """Delete all files and folders in a directory on the DPT-RP1 including
+        the directory itself.
+
+        """
+        self.rm_allfiles_recursively(path)
+        self.rm_dir(path)
+
 
 def main():
     dp_mgr = DPManager()
