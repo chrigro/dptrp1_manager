@@ -284,6 +284,8 @@ class RemoteTree(object):
                 else:
                     if node.entry_type == "folder":
                         print("{}{}".format(pre, node.entry_name))
+        else:
+            print("ERROR: Folder {} not found.".format(path))
 
     def print_folder_contents(self, path):
         foldernode = self.get_node_by_path(path)
@@ -300,6 +302,8 @@ class RemoteTree(object):
                     )
                 else:
                     print("{}{}".format(pre, node.entry_name))
+        else:
+            print("ERROR: Folder {} not found.".format(path))
 
     def _sizeof_fmt(self, num, suffix="B"):
         for unit in ["", "k", "M", "G", "T", "P", "E", "Z"]:
