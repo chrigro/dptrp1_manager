@@ -323,22 +323,22 @@ class RemoteTree(object):
             res = None
         return res
 
-    def insert_folder_node(self, path, name, entry_id, date, parent_id, doc_source):
+    def insert_folder_node(self, data):
         """Insert a folder into the tree.
 
         """
-        parentpath = path.rsplit("/", 1)[0]
+        parentpath = data["entry_path"].rsplit("/", 1)[0]
         parent = self.get_node_by_path(parentpath)
         DPNode(
             parent=parent,
-            entry_path=path,
-            entry_name=name,
+            entry_path=data["entry_path"],
+            entry_name=data["entry_name"],
             entry_type="folder",
-            entry_id=entry_id,
-            created_date=date,
-            is_new=True,
-            document_source=doc_source,
-            parent_folder_id=parent_folder,
+            entry_id=data["entry_id"],
+            created_date=data["created_date"],
+            is_new=data["is_new"],
+            document_source=data.get("document_source", None),
+            parent_folder_id=data["parent_folder_id"],
         )
 
 

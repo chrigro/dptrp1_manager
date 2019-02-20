@@ -159,8 +159,6 @@ class Synchronizer(FileTransferHandler):
         print(deleted_nodes)
         return deleted_nodes, curtree
 
-    # TODO: ISINSTANCE CHECKS NOT WORKING FOR TREES LOADED FROM FILE -> MAKE ALL NODES THE SAME TYPE (ANYTREE)
-
     def _cmp_local2old(self, local):
         """Compare the current local tree to the last seen one.
 
@@ -254,8 +252,6 @@ class Synchronizer(FileTransferHandler):
                 if node_rem.entry_type == "folder":
                     os.mkdir(targetpath)
                     # TODO: must add the node in the tree!
-                    # TODO: get node info from dpt
-                    # tree_rem.insert_folder_node()
                 else:
                     self._downloader.download_file(
                         node_rem.entry_path, targetpath, "remote_wins"
@@ -274,6 +270,10 @@ class Synchronizer(FileTransferHandler):
                 if node_loc.entry_type == "folder":
                     self._dp_mgr.mkdir(targetpath)
                     # TODO: must add the node in the tree!
+                    # TODO: get node info from dpt
+                    node_data = self._dp_mgr.dp.get_endpoint_data(targetpath)
+                    print(node_data)
+                    tree_rem.insert_folder_node(node_data)
                 else:
                     self._uploader.upload_file(
                         node_loc.abspath, targetpath, "local_wins"

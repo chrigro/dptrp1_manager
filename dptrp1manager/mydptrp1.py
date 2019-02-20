@@ -67,6 +67,9 @@ class MyDigitalPaper(DigitalPaper):
         data = self._get_endpoint('/documents2?entry_type=all').json()
         return data['entry_list']
 
+    def get_endpoint_data(self, path):
+        return self._resolve_object_by_path(path).json()
+
     ### Configuration
 
     def get_timeout(self):
