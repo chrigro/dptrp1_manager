@@ -254,6 +254,8 @@ class Synchronizer(FileTransferHandler):
                 if node_rem.entry_type == "folder":
                     os.mkdir(targetpath)
                     # TODO: must add the node in the tree!
+                    # TODO: get node info from dpt
+                    # tree_rem.insert_folder_node()
                 else:
                     self._downloader.download_file(
                         node_rem.entry_path, targetpath, "remote_wins"

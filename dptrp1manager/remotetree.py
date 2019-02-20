@@ -323,6 +323,24 @@ class RemoteTree(object):
             res = None
         return res
 
+    def insert_folder_node(self, path, name, entry_id, date, parent_id, doc_source):
+        """Insert a folder into the tree.
+
+        """
+        parentpath = path.rsplit("/", 1)[0]
+        parent = self.get_node_by_path(parentpath)
+        DPNode(
+            parent=parent,
+            entry_path=path,
+            entry_name=name,
+            entry_type="folder",
+            entry_id=entry_id,
+            created_date=date,
+            is_new=True,
+            document_source=doc_source,
+            parent_folder_id=parent_folder,
+        )
+
 
 def load_from_file(path):
     path = osp.expanduser(path)
