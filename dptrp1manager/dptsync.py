@@ -215,14 +215,16 @@ class Synchronizer(FileTransferHandler):
             # delete the node from the tree
             tree_loc.remove_node(self._fix_path4local(d))
         for d in deletions_rem["folders"]:
-            fn = tree_loc.get_node_by_path(self._fix_path4local(d)).abspath
-            print("Deleting local folder {}".format(fn))
-            if osp.exists(fn):
-                os.rmdir(fn)
-            else:
-                print("ERROR: File {} not found".format(fn))
-            # delete the node from the tree
-            tree_loc.remove_node(self._fix_path4local(d))
+            n = tree_loc.get_node_by_path(self._fix_path4local(d))
+            if n is not None:
+                fn = n.abspath
+                print("Deleting local folder {}".format(fn))
+                if osp.exists(fn):
+                    os.rmdir(fn)
+                else:
+                    print("ERROR: File {} not found".format(fn))
+                # delete the node from the tree
+                tree_loc.remove_node(self._fix_path4local(d))
         return tree_rem, tree_loc
 
     def _cmp_local2remote(self, tree_loc, tree_rem):
@@ -269,11 +271,10 @@ class Synchronizer(FileTransferHandler):
                 )
                 if node_loc.entry_type == "folder":
                     self._dp_mgr.mkdir(targetpath)
-                    # TODO: must add the node in the tree!
-                    # TODO: get node info from dpt
-                    node_data = self._dp_mgr.dp.get_endpoint_data(targetpath)
-                    print(node_data)
-                    tree_rem.insert_folder_node(node_data)
+                    conts = self._dp_mgr.dp.list_all()
+                    for nn in conts:
+                        if nn["entry_path"] == targetpath:
+                            tree_rem.insert_folder_node(nn)
                 else:
                     self._uploader.upload_file(
                         node_loc.abspath, targetpath, "local_wins"

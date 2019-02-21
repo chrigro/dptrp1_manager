@@ -195,12 +195,13 @@ class RemoteTree(object):
     def remove_node(self, path):
         node = self.get_node_by_path(path)
         childs = []
-        for n in node.parent.children:
-            if n.entry_path == node.entry_path:
-                pass
-            else:
-                childs.append(n)
-        node.parent.children = childs
+        if node is not None:
+            for n in node.parent.children:
+                if n.entry_path == node.entry_path:
+                    pass
+                else:
+                    childs.append(n)
+            node.parent.children = childs
 
     def _create_path(self, path):
         """Create the path to the node if not yet there.
