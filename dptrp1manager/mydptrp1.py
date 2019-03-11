@@ -64,18 +64,63 @@ class MyDigitalPaper(DigitalPaper):
         r = self._post_endpoint("/folders2", data=info)
 
     def list_all(self):
-        # data = self._get_endpoint("/documents2?entry_type=all").json()
-        # data = self._get_endpoint("/documents2?entry_type=all&limit=1000").json()
-        data = self._get_endpoint("/documents2?entry_type=all&limit=1000&order_type=entry_name_asc").json()
-        for dd in data['entry_list']:
-            print(f"Type: {dd['entry_type']}, Path: {dd['entry_path']}")
-        # data = self._get_endpoint('/documents2').json()
-        print(len(data['entry_list']))
+        allentries = []
+        duplicatelist = self._list_all_worker('root', 'root', allentries)
+        uniquelist = dict()
+        for val in duplicatelist:
+            if not val["entry_path"] in uniquelist.keys():
+                uniquelist[val["entry_path"]] = val
+        print(len(duplicatelist))
+        print(len(list(uniquelist.values())))
+        return uniquelist
+
+        # for nn, dd in enumerate(data['entry_list']):
+        #     print(f"{nn:3d}: Type: {dd['entry_type']}, Path: {dd['entry_path']}")
+        # # data = self._get_endpoint('/documents2').json()
+        # print(len(data['entry_list']))
+        # print(type(data['entry_list']))
+
+    def _list_all_worker(self, toplevel_folder_id, toplevel_folder_path, allentries):
+        """recursive worker
+
+        """
+        print(f"current folder {toplevel_folder_path} with id {toplevel_folder_id}")
+
+        limit = 200
+        current_level = len(toplevel_folder_path.split("/"))
+
+        data = self._get_endpoint(f"/documents2?entry_type=all&limit={limit}&order_type=entry_name_asc&origin_folder_id={toplevel_folder_id}").json()
         try:
-            return data['entry_list']
+            el = data['entry_list']
         except KeyError:
             print(data)
             raise
+        # see if hit the limit
+        if len(el) == limit:
+            # print(f"Length of entrylist: {len(el)}")
+            folds = self._get_folder_at_level(el, current_level + 1)
+            for fold in folds:
+                res = self._list_all_worker(fold["entry_id"], fold["entry_path"], allentries)
+                # print(f"Appending {len(res)} entries")
+                allentries = allentries + res
+                # print(f"New length {len(allentries)} entries")
+            return allentries
+        else:
+            print(f"found {len(el)} entries")
+            return el
+
+    def _get_folder_at_level(self, entrylist, n_level):
+        """Return all folder at the given level below root (level 1)
+
+        """
+        res = []
+        for entry in entrylist:
+            if entry["entry_type"] == "folder":
+                level = len(entry["entry_path"].split("/"))
+                if level == n_level:
+                    res.append(entry)
+        return res
+
 
     ### Configuration
 
