@@ -64,8 +64,13 @@ class MyDigitalPaper(DigitalPaper):
         r = self._post_endpoint("/folders2", data=info)
 
     def list_all(self):
-        data = self._get_endpoint('/documents2?entry_type=all').json()
-        return data['entry_list']
+        # data = self._get_endpoint('/documents2?entry_type=all').json()
+        data = self._get_endpoint('/documents2').json()
+        try:
+            return data['entry_list']
+        except KeyError:
+            print(data)
+            raise
 
     ### Configuration
 

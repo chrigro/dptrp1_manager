@@ -75,6 +75,7 @@ class DPManager(object):
 
         self._check_registered(register)
         self._authenticate()
+        print("Reading contents of the device")
         self._build_tree()
 
     def _checkconfigfile(self):
