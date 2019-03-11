@@ -65,8 +65,12 @@ class MyDigitalPaper(DigitalPaper):
 
     def list_all(self):
         # data = self._get_endpoint("/documents2?entry_type=all").json()
-        data = self._get_endpoint("/documents2?entry_type=all&limit=1000").json()
+        # data = self._get_endpoint("/documents2?entry_type=all&limit=1000").json()
+        data = self._get_endpoint("/documents2?entry_type=all&limit=1000&order_type=entry_name_asc").json()
+        for dd in data['entry_list']:
+            print(f"Type: {dd['entry_type']}, Path: {dd['entry_path']}")
         # data = self._get_endpoint('/documents2').json()
+        print(len(data['entry_list']))
         try:
             return data['entry_list']
         except KeyError:
