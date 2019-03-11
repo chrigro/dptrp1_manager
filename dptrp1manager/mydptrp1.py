@@ -72,6 +72,9 @@ class MyDigitalPaper(DigitalPaper):
                 uniquelist[val["entry_path"]] = val
         print(len(duplicatelist))
         print(len(list(uniquelist.values())))
+        for ll in uniquelist.values():
+            if not ll["entry_path"].startswith("Document"):
+                print("WHAT")
         return uniquelist
 
         # for nn, dd in enumerate(data['entry_list']):
@@ -86,7 +89,7 @@ class MyDigitalPaper(DigitalPaper):
         """
         print(f"current folder {toplevel_folder_path} with id {toplevel_folder_id}")
 
-        limit = 200
+        limit = 100
         current_level = len(toplevel_folder_path.split("/"))
 
         data = self._get_endpoint(f"/documents2?entry_type=all&limit={limit}&order_type=entry_name_asc&origin_folder_id={toplevel_folder_id}").json()
@@ -95,19 +98,19 @@ class MyDigitalPaper(DigitalPaper):
         except KeyError:
             print(data)
             raise
-        # see if hit the limit
-        if len(el) == limit:
-            # print(f"Length of entrylist: {len(el)}")
-            folds = self._get_folder_at_level(el, current_level + 1)
-            for fold in folds:
-                res = self._list_all_worker(fold["entry_id"], fold["entry_path"], allentries)
-                # print(f"Appending {len(res)} entries")
-                allentries = allentries + res
-                # print(f"New length {len(allentries)} entries")
-            return allentries
-        else:
+
+        if len(el) < limit:
             print(f"found {len(el)} entries")
             return el
+        else:
+            folds = self._get_folder_at_level(el, current_level + 1)
+            loopres = []
+            for fold in folds:
+                res = self._list_all_worker(fold["entry_id"], fold["entry_path"], allentries)
+                print(f"Appending {len(res)} entries")
+                loopres = loopres + res
+                print(f"New length {len(allentries)} entries")
+            return allentries + loopres
 
     def _get_folder_at_level(self, entrylist, n_level):
         """Return all folder at the given level below root (level 1)
