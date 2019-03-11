@@ -63,67 +63,58 @@ class MyDigitalPaper(DigitalPaper):
 
         r = self._post_endpoint("/folders2", data=info)
 
+    def _get_highest_level_folder(self, folderdict):
+        res = []
+        for fpath, fentry in folderdict.items():
+            level = len(fpath.split("/"))
+            res.append([level, fentry])
+        return sorted(res, key=lambda xx: xx[0])[0][1]
+
     def list_all(self):
-        allentries = []
-        duplicatelist = self._list_all_worker('root', 'root', allentries)
-        uniquelist = dict()
-        for val in duplicatelist:
-            if not val["entry_path"] in uniquelist.keys():
-                uniquelist[val["entry_path"]] = val
-        print(len(duplicatelist))
-        print(len(list(uniquelist.values())))
-        for ll in uniquelist.values():
-            if not ll["entry_path"].startswith("Document"):
-                print("WHAT")
-        return uniquelist
+        # TODO: This is not yet perfect. If folders are to large, entries might be missed.
+        limit = 1000
 
-        # for nn, dd in enumerate(data['entry_list']):
-        #     print(f"{nn:3d}: Type: {dd['entry_type']}, Path: {dd['entry_path']}")
-        # # data = self._get_endpoint('/documents2').json()
-        # print(len(data['entry_list']))
-        # print(type(data['entry_list']))
+        # use a dict with paths as keys
+        entrydict = self._get_contents("root", limit)
 
-    def _list_all_worker(self, toplevel_folder_id, toplevel_folder_path, allentries):
-        """recursive worker
+        if len(entrydict.keys()) >= limit:
+            folders = self._get_folders(entrydict)
+            while folders != {}:
+                cur_folder = self._get_highest_level_folder(folders)
+                # print(cur_folder["entry_path"])
+                # get new folders and append
+                new_entries = self._get_contents(cur_folder["entry_id"], limit)
+                entrydict.update(new_entries)
+                new_folders = self._get_folders(new_entries)
+                # remove folders if new entrydict length below limit, else add
+                # print(len(new_entries.keys()))
+                if len(new_entries.keys()) < limit:
+                    folders.pop(cur_folder["entry_path"])
+                    for ff in new_folders.keys():
+                        folders.pop(ff, None)
+                else:
+                    folders.update(new_folders)
+                    folders.pop(cur_folder["entry_path"])
+        return list(entrydict.values())
 
-        """
-        print(f"current folder {toplevel_folder_path} with id {toplevel_folder_id}")
-
-        limit = 100
-        current_level = len(toplevel_folder_path.split("/"))
-
-        data = self._get_endpoint(f"/documents2?entry_type=all&limit={limit}&order_type=entry_name_asc&origin_folder_id={toplevel_folder_id}").json()
+    def _get_contents(self, toplevel_folder_id, limit):
+        data = self._get_endpoint(f"/documents2?entry_type=all&limit={limit}&order_type=created_date_asc&origin_folder_id={toplevel_folder_id}").json()
         try:
             el = data['entry_list']
         except KeyError:
             print(data)
             raise
-
-        if len(el) < limit:
-            print(f"found {len(el)} entries")
-            return el
-        else:
-            folds = self._get_folder_at_level(el, current_level + 1)
-            loopres = []
-            for fold in folds:
-                res = self._list_all_worker(fold["entry_id"], fold["entry_path"], allentries)
-                print(f"Appending {len(res)} entries")
-                loopres = loopres + res
-                print(f"New length {len(allentries)} entries")
-            return allentries + loopres
-
-    def _get_folder_at_level(self, entrylist, n_level):
-        """Return all folder at the given level below root (level 1)
-
-        """
-        res = []
-        for entry in entrylist:
-            if entry["entry_type"] == "folder":
-                level = len(entry["entry_path"].split("/"))
-                if level == n_level:
-                    res.append(entry)
+        res = dict()
+        for entry in el:
+            res[entry["entry_path"]] = entry
         return res
 
+    def _get_folders(self, entrydict):
+        res = {}
+        for entry in entrydict.values():
+            if entry["entry_type"] == "folder":
+                res[entry["entry_path"]] = entry
+        return res
 
     ### Configuration
 
