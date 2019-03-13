@@ -198,11 +198,13 @@ class Synchronizer(FileTransferHandler):
 
         """
         for d in deletions_loc["documents"]:
+            print(f"Attempting to delete {self._fix_path4remote(d)} on remote")
             self._dp_mgr.rm_file(self._fix_path4remote(d))
             # delete the node from the tree
             tree_rem.remove_node(self._fix_path4remote(d))
         for d in deletions_loc["folders"]:
-            self._dp_mgr.rm_dir(self._fix_path4remote(d))
+            print(f"Attempting to delete {self._fix_path4remote(d)} on remote")
+            self._dp_mgr.rm_all_recursively(self._fix_path4remote(d))
             # delete the node from the tree
             tree_rem.remove_node(self._fix_path4remote(d))
         for d in deletions_rem["documents"]:
