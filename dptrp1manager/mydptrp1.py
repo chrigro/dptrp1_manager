@@ -27,11 +27,13 @@ class MyDigitalPaper(DigitalPaper):
         self._delete_endpoint(url)
 
     def delete_directory_byid(self, dir_id):
-        nnodes = self.get_directory_contents_byid(dir_id)["count"]
-        if nnodes == 0:
-            self._delete_endpoint('/folders/{}'.format(dir_id))
-        else:
-            print('ERROR: Remote directory not empty. Cannot delete it.')
+        data = self.get_directory_contents_byid(dir_id)
+        if not "error_code" in data.keys():
+            nnodes = data["count"]
+            if nnodes == 0:
+                self._delete_endpoint('/folders/{}'.format(dir_id))
+            else:
+                print('ERROR: Remote directory not empty. Cannot delete it.')
 
     def get_directory_contents_byid(self, dir_id):
         data = self._get_endpoint('/folders/{}/entries2'.format(dir_id)).json()
@@ -61,9 +63,58 @@ class MyDigitalPaper(DigitalPaper):
 
         r = self._post_endpoint("/folders2", data=info)
 
+    def _get_highest_level_folder(self, folderdict):
+        res = []
+        for fpath, fentry in folderdict.items():
+            level = len(fpath.split("/"))
+            res.append([level, fentry])
+        return sorted(res, key=lambda xx: xx[0])[0][1]
+
     def list_all(self):
-        data = self._get_endpoint('/documents2?entry_type=all').json()
-        return data['entry_list']
+        # TODO: This is not yet perfect. If folders are to large, entries might be missed.
+        limit = 1000
+
+        # use a dict with paths as keys
+        entrydict = self._get_contents("root", limit)
+
+        if len(entrydict.keys()) >= limit:
+            folders = self._get_folders(entrydict)
+            while folders != {}:
+                cur_folder = self._get_highest_level_folder(folders)
+                # print(cur_folder["entry_path"])
+                # get new folders and append
+                new_entries = self._get_contents(cur_folder["entry_id"], limit)
+                entrydict.update(new_entries)
+                new_folders = self._get_folders(new_entries)
+                # remove folders if new entrydict length below limit, else add
+                # print(len(new_entries.keys()))
+                if len(new_entries.keys()) < limit:
+                    folders.pop(cur_folder["entry_path"])
+                    for ff in new_folders.keys():
+                        folders.pop(ff, None)
+                else:
+                    folders.update(new_folders)
+                    folders.pop(cur_folder["entry_path"])
+        return list(entrydict.values())
+
+    def _get_contents(self, toplevel_folder_id, limit):
+        data = self._get_endpoint(f"/documents2?entry_type=all&limit={limit}&order_type=created_date_asc&origin_folder_id={toplevel_folder_id}").json()
+        try:
+            el = data['entry_list']
+        except KeyError:
+            print(data)
+            raise
+        res = dict()
+        for entry in el:
+            res[entry["entry_path"]] = entry
+        return res
+
+    def _get_folders(self, entrydict):
+        res = {}
+        for entry in entrydict.values():
+            if entry["entry_type"] == "folder":
+                res[entry["entry_path"]] = entry
+        return res
 
     ### Configuration
 

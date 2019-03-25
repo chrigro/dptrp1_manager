@@ -34,6 +34,12 @@ The key and id file necessary to interact with the digital paper are stored in
   remotely.
 
 
+**Shell completion**
+
+There are completion script for bash and zsh in the tools folder. Both are only
+partially done, but work well for the everyday tasks.
+
+
 ## Note:
 
 Not all commands have been tested yet, but the majority of them works for me.
