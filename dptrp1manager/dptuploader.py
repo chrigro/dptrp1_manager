@@ -47,56 +47,62 @@ class Uploader(FileTransferHandler):
         """
         source = osp.expanduser(source)
         dest = self._dp_mgr.fix_path(dest)
-        if not dest.endswith(".pdf"):
-            if dest.endswith("/"):
-                dest_dir = dest[:-1]
-            dest = "{}/{}".format(dest, osp.basename(source))
-        dest_dir, dest_fn = dest.rsplit("/", maxsplit=1)
-        if (
-            self._check_policy(policy)
-            and self._dp_mgr.node_exists(dest_dir)
-            and self._local_path_ok(source)
-            and self._dp_mgr.file_name_ok(dest)
-        ):
-            do_transfer = True
-            if self._dp_mgr.node_exists(dest, print_error=False):
-                if self._is_equal(source, dest):
-                    do_transfer = False
-                    # print("EQUAL: Skipping upload of {}".format(osp.basename(source)))
-                else:
-                    if policy == "local_wins":
-                        # delete the old file
-                        self._dp_mgr.rm_file(dest)
-                        do_transfer = True
-                    elif policy == "remote_wins":
+        # skip anything below a dot folder
+        isdotpath = False
+        for comp in dest.split["/"]:
+            if comp.startswith("."):
+                isdotpath = True
+        if not isdotpath:
+            if not dest.endswith(".pdf"):
+                if dest.endswith("/"):
+                    dest_dir = dest[:-1]
+                dest = "{}/{}".format(dest, osp.basename(source))
+            dest_dir, dest_fn = dest.rsplit("/", maxsplit=1)
+            if (
+                self._check_policy(policy)
+                and self._dp_mgr.node_exists(dest_dir)
+                and self._local_path_ok(source)
+                and self._dp_mgr.file_name_ok(dest)
+            ):
+                do_transfer = True
+                if self._dp_mgr.node_exists(dest, print_error=False):
+                    if self._is_equal(source, dest):
                         do_transfer = False
-                        print(
-                            "REMOTE_WINS: Skipping upload of {}".format(
-                                osp.basename(source)
-                            )
-                        )
-                    elif policy == "newer":
-                        if self._check_datetime(source, dest) == "local_newer":
+                        # print("EQUAL: Skipping upload of {}".format(osp.basename(source)))
+                    else:
+                        if policy == "local_wins":
                             # delete the old file
                             self._dp_mgr.rm_file(dest)
                             do_transfer = True
-                        else:
+                        elif policy == "remote_wins":
                             do_transfer = False
                             print(
-                                "NEWER: Skipping upload of {}".format(
+                                "REMOTE_WINS: Skipping upload of {}".format(
                                     osp.basename(source)
                                 )
                             )
-                    elif policy == "skip":
-                        do_transfer = False
-                        print(
-                            "SKIP: Skipping upload of {}".format(osp.basename(source))
-                        )
-            if do_transfer:
-                print("Adding file {}".format(dest))
-                with open(source, "rb") as f:
-                    dest_dir_node = self._dp_mgr.get_node(dest_dir)
-                    self._dp_mgr.dp.upload_byid(f, dest_dir_node.entry_id, dest_fn)
+                        elif policy == "newer":
+                            if self._check_datetime(source, dest) == "local_newer":
+                                # delete the old file
+                                self._dp_mgr.rm_file(dest)
+                                do_transfer = True
+                            else:
+                                do_transfer = False
+                                print(
+                                    "NEWER: Skipping upload of {}".format(
+                                        osp.basename(source)
+                                    )
+                                )
+                        elif policy == "skip":
+                            do_transfer = False
+                            print(
+                                "SKIP: Skipping upload of {}".format(osp.basename(source))
+                            )
+                if do_transfer:
+                    print("Adding file {}".format(dest))
+                    with open(source, "rb") as f:
+                        dest_dir_node = self._dp_mgr.get_node(dest_dir)
+                        self._dp_mgr.dp.upload_byid(f, dest_dir_node.entry_id, dest_fn)
 
     def upload_folder_contents(self, source, dest, policy="skip"):
         """Upload a full folder to the DPT-RP1.

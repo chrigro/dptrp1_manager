@@ -309,15 +309,25 @@ class DPManager(object):
         """Create a new directory on the DPT-RP1.
 
         """
-        path = self.fix_path(path)
-        parent_folder, new_folder = path.rsplit("/", maxsplit=1)
-        if self.node_exists(parent_folder):
-            if not self.node_exists(path, print_error=False):
-                print("Creating folder {}".format(path))
-                parent_folder_id = self.get_node(parent_folder).entry_id
-                self.dp.new_folder_byid(parent_folder_id, new_folder)
-            else:
-                print("ERROR: DPT-RP1 has already a folder {}".format(path))
+        # skip dot folders
+        # skip anything below a dot folder
+        isdotpath = False
+        for comp in path.split["/"]:
+            if comp.startswith("."):
+                isdotpath = True
+        if not isdotpath:
+            path = self.fix_path(path)
+            parent_folder, new_folder = path.rsplit("/", maxsplit=1)
+            if self.node_exists(parent_folder):
+                if not self.node_exists(path, print_error=False):
+                    print("Creating folder {}".format(path))
+                    parent_folder_id = self.get_node(parent_folder).entry_id
+                    self.dp.new_folder_byid(parent_folder_id, new_folder)
+                else:
+                    print("ERROR: DPT-RP1 has already a folder {}".format(path))
+        else:
+            print("Skipping 'dot' folder {}".format(path))
+
 
     def rm_dir(self, path):
         """Delete a (empty) directory on the DPT-RP1.
