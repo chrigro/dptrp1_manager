@@ -312,7 +312,7 @@ class DPManager(object):
         # skip dot folders
         # skip anything below a dot folder
         isdotpath = False
-        for comp in path.split["/"]:
+        for comp in path.split("/"):
             if comp.startswith("."):
                 isdotpath = True
         if not isdotpath:

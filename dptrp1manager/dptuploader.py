@@ -49,7 +49,7 @@ class Uploader(FileTransferHandler):
         dest = self._dp_mgr.fix_path(dest)
         # skip anything below a dot folder
         isdotpath = False
-        for comp in dest.split["/"]:
+        for comp in dest.split("/"):
             if comp.startswith("."):
                 isdotpath = True
         if not isdotpath:
