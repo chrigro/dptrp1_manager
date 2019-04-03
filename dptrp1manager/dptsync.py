@@ -19,6 +19,7 @@
 
 
 import os
+import shutil
 import os.path as osp
 import configparser
 
@@ -208,21 +209,23 @@ class Synchronizer(FileTransferHandler):
             # delete the node from the tree
             tree_rem.remove_node(self._fix_path4remote(d))
         for d in deletions_rem["documents"]:
-            fn = tree_loc.get_node_by_path(self._fix_path4local(d)).abspath
-            print("Deleting local file {}".format(fn))
-            if osp.exists(fn):
-                os.remove(fn)
-            else:
-                print("ERROR: File {} not found".format(fn))
-            # delete the node from the tree
-            tree_loc.remove_node(self._fix_path4local(d))
+            fn = tree_loc.get_node_by_path(self._fix_path4local(d))
+            if fn is not None:
+                fn = fn.abspath
+                print("Deleting local file {}".format(fn))
+                if osp.exists(fn):
+                    os.remove(fn)
+                else:
+                    print("ERROR: File {} not found".format(fn))
+                # delete the node from the tree
+                tree_loc.remove_node(self._fix_path4local(d))
         for d in deletions_rem["folders"]:
             n = tree_loc.get_node_by_path(self._fix_path4local(d))
             if n is not None:
                 fn = n.abspath
                 print("Deleting local folder {}".format(fn))
                 if osp.exists(fn):
-                    os.rmdir(fn)
+                    shutil.rmtree(fn)
                 else:
                     print("ERROR: File {} not found".format(fn))
                 # delete the node from the tree
