@@ -106,7 +106,7 @@ class DPManager(object):
             retry = 0
             print(f"Connecting to {iface}", end="", flush=True)
             while (not self._interface_up(iface)) and retry < 50:
-                time.sleep(0.2)
+                time.sleep(0.3)
                 retry += 1
                 print(".", end="", flush=True)
             if self._interface_up(iface):
@@ -114,10 +114,11 @@ class DPManager(object):
                 break
             print("\n", end="", flush=True)
         if not res:
+            print("\n")
             print("Could not connect to the DPT-RP1 via USB, exiting.")
             sys.exit(1)
         else:
-            print(f"{iface} is up!")
+            print("\n")
             return res
 
     def _get_ip(self, ip):
