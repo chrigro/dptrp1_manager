@@ -97,25 +97,36 @@ class DPManager(object):
         interface_addrs = psutil.net_if_addrs().get(interface) or []
         return socket.AF_INET in [snicaddr.family for snicaddr in interface_addrs]
 
-    def _wait_until_connected(self, interface):
-        retry = 0
-        print("Connecting ", end="", flush=True)
-        while (not self._interface_up(interface)) and retry < 50:
-            time.sleep(0.3)
-            retry += 1
-            print(".", end="", flush=True)
-        if not self._interface_up(interface):
+    def _wait_until_connected(self, interfaces):
+        """Get interfaces to try and return the one connected.
+
+        """
+        res = None
+        for iface in interfaces:
+            retry = 0
+            print(f"Connecting to {iface}", end="", flush=True)
+            while (not self._interface_up(iface)) and retry < 50:
+                time.sleep(0.2)
+                retry += 1
+                print(".", end="", flush=True)
+            if self._interface_up(iface):
+                res = iface
+                break
+            print("\n", end="", flush=True)
+        if not res:
             print("Could not connect to the DPT-RP1 via USB, exiting.")
             sys.exit(1)
-        print("\n", end="", flush=True)
+        else:
+            print(f"{iface} is up!")
+            return res
 
     def _get_ip(self, ip):
         # prefer usb
         if self._is_usb_conneted():
             self._set_up_eth_usb()
             ip_bare = self._config["USB"]["ipv6"]
-            iface = self._config["USB"]["interface"]
-            self._wait_until_connected(iface)
+            ifaces = self._config["USB"]["interfaces"]
+            iface = self._wait_until_connected(ifaces.split(","))
             ip = "[{}%{}]".format(ip_bare, iface)
             print("Using ethernet over USB with ip {} to connect.".format(ip))
         elif ip == "":
