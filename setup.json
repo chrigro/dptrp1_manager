@@ -16,7 +16,8 @@
     "install_requires": [
         "dpt-rp1-py>=0.1.0",
         "anytree>=2.4.3",
-        "pyserial>=3.4"
+        "pyserial>=3.4",
+        "psutil>=5.6.3"
     ],
     "scripts": [
         "dpmgr"
