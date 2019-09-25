@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import requests
 from urllib.parse import quote_plus
 
 from dptrp1.dptrp1 import DigitalPaper
@@ -19,7 +18,7 @@ class MyDigitalPaper(DigitalPaper):
         url = "{base_url}/documents/{remote_id}/file".format(
                 base_url = self.base_url,
                 remote_id = remote_id)
-        response = requests.get(url, verify=False)
+        response = self.session.get(url)
         return response.content
 
     def delete_document_byid(self, remote_id):
