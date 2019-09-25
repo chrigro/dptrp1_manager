@@ -126,12 +126,8 @@ class LocalTree(object):
                     parentnode = self.get_node_by_path(parentpath)
                     relpath = osp.join(parentpath, name)
                     abspath = osp.join(path, name)
-                    modtime = datetime.fromtimestamp(int(osp.getmtime(abspath)))
+                    modtime = datetime.utcfromtimestamp(osp.getmtime(abspath))
                     fsize = osp.getsize(abspath)
-
-                    if name=="20190925-notes-forschergruppe-a2a.pdf":
-                        print(fsize)
-                        print(modtime)
                     LocalNode(
                         parent=parentnode,
                         name=name,

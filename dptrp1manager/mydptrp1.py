@@ -11,6 +11,8 @@ class MyDigitalPaper(DigitalPaper):
     """
     def __init__(self, addr = None):
         super().__init__(addr)
+        # set the time of the dpt-rp1
+        self.set_datetime()
 
     # file management
 

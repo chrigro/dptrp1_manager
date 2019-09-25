@@ -66,7 +66,6 @@ class DPManager(object):
         addr = self._get_ip(ip)
         print("Attempting connection to ip {}".format(addr))
         self.dp = mydptrp1.MyDigitalPaper(addr)
-        print(self.dp.base_url)
         if self.dp is None:
             sys.exit(1)
         self._key_file = osp.join(CONFIGDIR, "dptrp1_key")
@@ -167,7 +166,7 @@ class DPManager(object):
                     )
                     devices.append(dinfo)
         for dev in devices:
-            if "Sony Corp. " in dev["tag"]:
+            if "Sony Corp. DPT-RP1" in dev["tag"]:
                 res = True
         return res
 

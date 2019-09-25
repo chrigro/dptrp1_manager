@@ -371,7 +371,9 @@ class Synchronizer(FileTransferHandler):
 
         """
         if old.entry_type == "document":
-            # first check the file sizes. We consider the nodes the same when the size matches
+            if (old.modified_date -  new.modified_date).total_seconds() < 0:
+                print("Newer file detected")
+            # check the file sizes. We consider the nodes the same when the size matches
             if old.file_size == new.file_size:
                 new.sync_state = "equal"
             else:
