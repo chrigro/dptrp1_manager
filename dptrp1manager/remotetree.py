@@ -257,6 +257,9 @@ class RemoteTree(object):
                 node.document_source = data.get("document_source", None)
                 node.parent_folder_id = data["parent_folder_id"]
         elif data["entry_type"] == "document":
+            if data["entry_name"]=="20190925-notes-forschergruppe-a2a.pdf":
+                print(data["file_size"])
+                print(data["modified_date"])
             DPNode(
                 parent=parent,
                 entry_path=data["entry_path"],
