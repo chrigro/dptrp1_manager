@@ -19,7 +19,7 @@ class MyDigitalPaper(DigitalPaper):
         url = "{base_url}/documents/{remote_id}/file".format(
                 base_url = self.base_url,
                 remote_id = remote_id)
-        response = requests.get(url, verify=False, cookies=self.cookies)
+        response = requests.get(url, verify=False)
         return response.content
 
     def delete_document_byid(self, remote_id):
