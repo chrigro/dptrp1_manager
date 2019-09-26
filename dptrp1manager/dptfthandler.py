@@ -35,32 +35,24 @@ class FileTransferHandler(object):
         super(FileTransferHandler, self).__init__()
         self._dp_mgr = dp_mgr
 
-    # FIXME: Updade this method to use the modification date as in sync
-    def _is_equal(self, local, remote):
-        """Check if two files are equal.
-
-        For now we just check for the size
-
-        """
-        remote_size = self._dp_mgr.get_node(remote).file_size
-        local_size = osp.getsize(local)
-        if remote_size == local_size:
-            return True
-        else:
-            return False
-
-    def _check_datetime(self, local, remote):
+    def _check_newer(self, local, remote):
         """Check if the local or remote file is newer.
 
         """
         remote_time = self._dp_mgr.get_node(remote).modified_date
-        local_time = datetime.datetime.fromtimestamp(osp.getmtime(local))
-        print("{}: {}".format(remote, remote_time))
-        print("{}: {}".format(local, local_time))
-        if remote_time > local_time:
-            return "remote_newer"
-        else:
-            return "local_newer"
+        local_time = datetime.utcfromtimestamp(osp.getmtime(local))
+        # print("{}: {}".format(remote, remote_time))
+        # print("{}: {}".format(local, local_time))
+        dt = (remote_time -  local_time).total_seconds()
+        if dt == 0:
+            print("equal")
+            return 0
+        elif dt < 0:
+            print("local_newer")
+            return 1
+        elif > 0:
+            print("remote_newer")
+            return 2
 
     def _local_path_ok(self, path, printerr=True):
         if not osp.exists(path):

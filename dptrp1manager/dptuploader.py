@@ -66,37 +66,37 @@ class Uploader(FileTransferHandler):
             ):
                 do_transfer = True
                 if self._dp_mgr.node_exists(dest, print_error=False):
-                    # if self._is_equal(source, dest):
-                    #     do_transfer = False  # FIXME: to modified date checking here.
-                    # else:
-                    if policy == "local_wins":
-                        # delete the old file
-                        self._dp_mgr.rm_file(dest)
-                        do_transfer = True
-                    elif policy == "remote_wins":
+                    if self._check_newer(source, dest) == 0:
                         do_transfer = False
-                        print(
-                            "REMOTE_WINS: Skipping upload of {}".format(
-                                osp.basename(source)
-                            )
-                        )
-                    elif policy == "newer":
-                        if self._check_datetime(source, dest) == "local_newer":
+                    else:
+                        if policy == "local_wins":
                             # delete the old file
                             self._dp_mgr.rm_file(dest)
                             do_transfer = True
-                        else:
+                        elif policy == "remote_wins":
                             do_transfer = False
                             print(
-                                "NEWER: Skipping upload of {}".format(
+                                "REMOTE_WINS: Skipping upload of {}".format(
                                     osp.basename(source)
                                 )
                             )
-                    elif policy == "skip":
-                        do_transfer = False
-                        print(
-                            "SKIP: Skipping upload of {}".format(osp.basename(source))
-                        )
+                        elif policy == "newer":
+                            if self._check_newer(local=source, remote=dest) == 1:
+                                # delete the old file
+                                self._dp_mgr.rm_file(dest)
+                                do_transfer = True
+                            else:
+                                do_transfer = False
+                                print(
+                                    "NEWER: Skipping upload of {}".format(
+                                        osp.basename(source)
+                                    )
+                                )
+                        elif policy == "skip":
+                            do_transfer = False
+                            print(
+                                "SKIP: Skipping upload of {}".format(osp.basename(source))
+                            )
                 if do_transfer:
                     print("Adding file {}".format(dest))
                     with open(source, "rb") as f:

@@ -59,33 +59,33 @@ class Downloader(FileTransferHandler):
         ):
             do_transfer = True
             if osp.exists(dest):
-                # if self._is_equal(dest, source):
-                #     do_transfer = False  # FIXME: to modified date checking here.
-                # else:
-                if policy == "local_wins":
+                if self._check_newer(dest, source) == 0:
                     do_transfer = False
-                    print(
-                        "LOCAL_WINS: Skipping download of {}".format(
-                            osp.basename(source)
-                        )
-                    )
-                elif policy == "remote_wins":
-                    do_transfer = True
-                elif policy == "newer":
-                    if self._check_datetime(dest, source) == "remote_newer":
-                        do_transfer = True
-                    else:
+                else:
+                    if policy == "local_wins":
                         do_transfer = False
                         print(
-                            "NEWER: Skipping download of {}".format(
+                            "LOCAL_WINS: Skipping download of {}".format(
                                 osp.basename(source)
                             )
                         )
-                elif policy == "skip":
-                    do_transfer = False
-                    print(
-                        "SKIP: Skipping download of {}".format(osp.basename(source))
-                    )
+                    elif policy == "remote_wins":
+                        do_transfer = True
+                    elif policy == "newer":
+                        if self._check_newer(local=dest, remote=source) == 2:
+                            do_transfer = True
+                        else:
+                            do_transfer = False
+                            print(
+                                "NEWER: Skipping download of {}".format(
+                                    osp.basename(source)
+                                )
+                            )
+                    elif policy == "skip":
+                        do_transfer = False
+                        print(
+                            "SKIP: Skipping download of {}".format(osp.basename(source))
+                        )
             if do_transfer:
                 print("Downloading {}".format(source))
                 data = self._dp_mgr.dp.download_byid(source_node.entry_id)
