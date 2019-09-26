@@ -35,6 +35,7 @@ class FileTransferHandler(object):
         super(FileTransferHandler, self).__init__()
         self._dp_mgr = dp_mgr
 
+    # FIXME: Updade this method to use the modification date as in sync
     def _is_equal(self, local, remote):
         """Check if two files are equal.
 

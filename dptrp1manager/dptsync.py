@@ -141,7 +141,7 @@ class Synchronizer(FileTransferHandler):
             for oldnode in PreOrderIter(oldtree.tree):
                 node = curtree.get_node_by_path(oldnode.entry_path)
                 if node is not None:
-                    self._check_node(oldnode, node)
+                    self._check_node_status(oldnode, node)
                     # print(f"Name: {node.entry_name}: {node.sync_state}")
                 else:
                     # print("NOT FOUND")
@@ -174,7 +174,7 @@ class Synchronizer(FileTransferHandler):
             for oldnode in PreOrderIter(oldtree.tree):
                 node = curtree.get_node_by_path(oldnode.relpath)
                 if node is not None:
-                    self._check_node(oldnode, node)
+                    self._check_node_status(oldnode, node)
                     # print(f"Name: {node.name}: {node.sync_state}")
                 else:
                     # print("NOT FOUND")
@@ -244,9 +244,7 @@ class Synchronizer(FileTransferHandler):
             if node_loc is not None:
                 # Only relevant for documents
                 if node_rem.entry_type == "document":
-                    if not node_rem.file_size == node_loc.file_size:
-                        # local and remote are different
-                        self._handle_changes(node_loc, node_rem)
+                    self._handle_changes(node_loc, node_rem)
             else:
                 # download
                 targetpath = osp.join(
@@ -300,11 +298,8 @@ class Synchronizer(FileTransferHandler):
                 node_rem.entry_path, node_loc.abspath, "remote_wins"
             )
         elif node_rem.sync_state == "equal" and node_loc.sync_state == "equal":
-            # ask the user (should not happen)
-            print(
-                "Neither the local nor the remote node is modified, but the documents are different. WHAT!?"
-            )
-            self._askuser(node_loc, node_rem)
+            # nothing to do
+            pass
         elif node_rem.sync_state == "modified" and node_loc.sync_state == "modified":
             # ask the user
             self._askuser(node_loc, node_rem)
@@ -366,18 +361,23 @@ class Synchronizer(FileTransferHandler):
                 node_rem.entry_path, node_loc.abspath, "remote_wins"
             )
 
-    def _check_node(self, old, new):
-        """Check the status of the nodes.
+    def _check_node_status(self, old, new):
+        """Check the status of the nodes, i.e. has it been modified?
 
         """
         if old.entry_type == "document":
-            if (old.modified_date -  new.modified_date).total_seconds() < 0:
-                print("Newer file detected")
-            # check the file sizes. We consider the nodes the same when the size matches
-            if old.file_size == new.file_size:
-                new.sync_state = "equal"
-            else:
+            # Use the modification date
+            dt = (old.modified_date -  new.modified_date).total_seconds()
+            if  dt < 0:
                 new.sync_state = "modified"
+            else:
+                new.sync_state = "equal"
+            # Use file sizes for comparison. The problem is that this is metadata info 
+            # is very infrequently updated on the dptrp1
+            # if old.file_size == new.file_size:
+            #     new.sync_state = "equal"
+            # else:
+            #     new.sync_state = "modified"
         else:
             new.sync_state = "equal"
 
