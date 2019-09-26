@@ -19,7 +19,7 @@
 
 
 import os.path as osp
-import datetime
+from datetime import datetime
 
 
 class FileTransferHandler(object):
@@ -45,13 +45,13 @@ class FileTransferHandler(object):
         # print("{}: {}".format(local, local_time))
         dt = (remote_time -  local_time).total_seconds()
         if dt == 0:
-            print("equal")
+            # print("equal")
             return 0
         elif dt < 0:
-            print("local_newer")
+            # print("local_newer")
             return 1
-        elif > 0:
-            print("remote_newer")
+        elif dt > 0:
+            # print("remote_newer")
             return 2
 
     def _local_path_ok(self, path, printerr=True):

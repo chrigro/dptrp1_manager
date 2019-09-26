@@ -199,12 +199,12 @@ class Synchronizer(FileTransferHandler):
 
         """
         for d in deletions_loc["documents"]:
-            print(f"Attempting to delete {self._fix_path4remote(d)} on remote")
+            # print(f"Attempting to delete {self._fix_path4remote(d)} on remote")
             self._dp_mgr.rm_file(self._fix_path4remote(d))
             # delete the node from the tree
             tree_rem.remove_node(self._fix_path4remote(d))
         for d in deletions_loc["folders"]:
-            print(f"Attempting to delete {self._fix_path4remote(d)} on remote")
+            # print(f"Attempting to delete {self._fix_path4remote(d)} on remote")
             self._dp_mgr.rm_all_recursively(self._fix_path4remote(d))
             # delete the node from the tree
             tree_rem.remove_node(self._fix_path4remote(d))
@@ -251,9 +251,9 @@ class Synchronizer(FileTransferHandler):
                     osp.dirname(self._local_root),
                     self._fix_path4local(node_rem.entry_path),
                 )
-                print(
-                    "Local node not found. Attempting download of {}".format(targetpath)
-                )
+                # print(
+                #     "Local node not found. Attempting download of {}".format(targetpath)
+                # )
                 if node_rem.entry_type == "folder":
                     os.mkdir(targetpath)
                     # TODO: must add the node in the tree!
@@ -269,9 +269,9 @@ class Synchronizer(FileTransferHandler):
             if node_rem is None:
                 # upload
                 targetpath = self._fix_path4remote(node_loc.relpath)
-                print(
-                    "Remote node not found. Attempting upload of {}".format(targetpath)
-                )
+                # print(
+                #     "Remote node not found. Attempting upload of {}".format(targetpath)
+                # )
                 if node_loc.entry_type == "folder":
                     self._dp_mgr.mkdir(targetpath)
                     conts = self._dp_mgr.dp.list_all()
@@ -289,11 +289,11 @@ class Synchronizer(FileTransferHandler):
         """
         if node_rem.sync_state is None or node_loc.sync_state is None:
             # download in remote wins mode
-            print(
-                "Attempting download of {} to {}".format(
-                    node_rem.entry_path, node_loc.abspath
-                )
-            )
+            # print(
+            #     "Attempting download of {} to {}".format(
+            #         node_rem.entry_path, node_loc.abspath
+            #     )
+            # )
             self._downloader.download_file(
                 node_rem.entry_path, node_loc.abspath, "remote_wins"
             )
@@ -308,11 +308,11 @@ class Synchronizer(FileTransferHandler):
             self._askuser(node_loc, node_rem)
         elif node_rem.sync_state == "equal" and node_loc.sync_state == "modified":
             # upload
-            print(
-                "Attempting upload of {} to {}".format(
-                    node_loc.abspath, node_rem.entry_path
-                )
-            )
+            # print(
+            #     "Attempting upload of {} to {}".format(
+            #         node_loc.abspath, node_rem.entry_path
+            #     )
+            # )
             self._uploader.upload_file(
                 node_loc.abspath, node_rem.entry_path, "local_wins"
             )
@@ -321,11 +321,11 @@ class Synchronizer(FileTransferHandler):
             self._askuser(node_loc, node_rem)
         elif node_rem.sync_state == "modified" and node_loc.sync_state == "equal":
             # download
-            print(
-                "Attempting download of {} to {}".format(
-                    node_rem.entry_path, node_loc.abspath
-                )
-            )
+            # print(
+            #     "Attempting download of {} to {}".format(
+            #         node_rem.entry_path, node_loc.abspath
+            #     )
+            # )
             self._downloader.download_file(
                 node_rem.entry_path, node_loc.abspath, "remote_wins"
             )

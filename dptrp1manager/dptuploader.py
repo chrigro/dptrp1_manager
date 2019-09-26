@@ -68,6 +68,11 @@ class Uploader(FileTransferHandler):
                 if self._dp_mgr.node_exists(dest, print_error=False):
                     if self._check_newer(source, dest) == 0:
                         do_transfer = False
+                        print(
+                            "FILES EQUAL: Skipping upload of {}".format(
+                                osp.basename(source)
+                            )
+                        )
                     else:
                         if policy == "local_wins":
                             # delete the old file

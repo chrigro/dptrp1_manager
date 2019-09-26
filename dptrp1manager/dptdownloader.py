@@ -61,6 +61,11 @@ class Downloader(FileTransferHandler):
             if osp.exists(dest):
                 if self._check_newer(dest, source) == 0:
                     do_transfer = False
+                    print(
+                        "FILES EQUAL: Skipping download of {}".format(
+                            osp.basename(source)
+                        )
+                    )
                 else:
                     if policy == "local_wins":
                         do_transfer = False
