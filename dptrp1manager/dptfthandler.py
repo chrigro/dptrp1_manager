@@ -43,7 +43,7 @@ class FileTransferHandler(object):
         local_time = datetime.utcfromtimestamp(osp.getmtime(local))
         # print("{}: {}".format(remote, remote_time))
         # print("{}: {}".format(local, local_time))
-        dt = (remote_time -  local_time).total_seconds()
+        dt = (remote_time - local_time).total_seconds()
         if dt == 0:
             # print("equal")
             return 0

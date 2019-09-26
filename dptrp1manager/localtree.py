@@ -100,7 +100,13 @@ class LocalTree(object):
 
         """
         bn = osp.basename(self._rootpath)
-        rootnode = LocalNode(parent=None, name=bn, relpath=bn, abspath=self._rootpath, entry_type="folder")
+        rootnode = LocalNode(
+            parent=None,
+            name=bn,
+            relpath=bn,
+            abspath=self._rootpath,
+            entry_type="folder",
+        )
         return rootnode
 
     def _create_tree(self):

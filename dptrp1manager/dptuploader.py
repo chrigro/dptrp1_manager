@@ -100,7 +100,9 @@ class Uploader(FileTransferHandler):
                         elif policy == "skip":
                             do_transfer = False
                             print(
-                                "SKIP: Skipping upload of {}".format(osp.basename(source))
+                                "SKIP: Skipping upload of {}".format(
+                                    osp.basename(source)
+                                )
                             )
                 if do_transfer:
                     print("Adding file {}".format(dest))

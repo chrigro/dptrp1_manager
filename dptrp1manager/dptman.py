@@ -340,7 +340,6 @@ class DPManager(object):
         else:
             print("Skipping 'dot' folder {}".format(path))
 
-
     def rm_dir(self, path):
         """Delete a (empty) directory on the DPT-RP1.
 
