@@ -95,7 +95,9 @@ class DPManager(object):
 
         """
         interface_addrs = psutil.net_if_addrs().get(interface) or []
-        return socket.AF_INET in [snicaddr.family for snicaddr in interface_addrs]
+        inet6 = socket.AF_INET6 in [snicaddr.family for snicaddr in interface_addrs]
+        inet4 = socket.AF_INET in [snicaddr.family for snicaddr in interface_addrs]
+        return (inet4 or inet6)
 
     def _wait_until_connected(self, interfaces):
         """Get interfaces to try and return the one connected.
