@@ -168,7 +168,7 @@ class DPManager(object):
                     )
                     devices.append(dinfo)
         for dev in devices:
-            if "Sony Corp. DPT-RP1" in dev["tag"]:
+            if "Sony Corp" in dev["tag"]:
                 res = True
         return res
 
