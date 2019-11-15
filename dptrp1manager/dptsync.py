@@ -367,17 +367,17 @@ class Synchronizer(FileTransferHandler):
         """
         if old.entry_type == "document":
             # Use the modification date
-            dt = (old.modified_date - new.modified_date).total_seconds()
-            if dt < 0:
-                new.sync_state = "modified"
-            else:
-                new.sync_state = "equal"
+            # dt = (old.modified_date - new.modified_date).total_seconds()
+            # if dt < 0:
+            #     new.sync_state = "modified"
+            # else:
+            #     new.sync_state = "equal"
             # Use file sizes for comparison. The problem is that this is metadata info
             # is very infrequently updated on the dptrp1
-            # if old.file_size == new.file_size:
-            #     new.sync_state = "equal"
-            # else:
-            #     new.sync_state = "modified"
+            if old.file_size == new.file_size:
+                new.sync_state = "equal"
+            else:
+                new.sync_state = "modified"
         else:
             new.sync_state = "equal"
 
