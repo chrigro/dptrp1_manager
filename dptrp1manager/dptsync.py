@@ -64,7 +64,7 @@ class Synchronizer(FileTransferHandler):
         with open(osp.join(CONFIGDIR, "sync.conf"), "w") as f:
             self._config.write(f)
 
-    def sync_pairs(self):
+    def sync_pairs(self, policy):
         """Sync the pairs defined in the config file.
 
         """
@@ -75,9 +75,9 @@ class Synchronizer(FileTransferHandler):
             rp = self._config[pair]["remote_path"]
             print("---Local root is  {}---".format(lp))
             print("---Remote root is {}---".format(rp))
-            self.sync_folder(lp, rp)
+            self.sync_folder(lp, rp, policy)
 
-    def sync_folder(self, local, remote):
+    def sync_folder(self, local, remote, policy):
         """Synchronize a local and remote folder recursively.
 
         Parameters
@@ -86,6 +86,9 @@ class Synchronizer(FileTransferHandler):
             Path to the source
         remote : string
             Full path to the folder on the DPT-RP1
+        policy : string
+            What to do in case of a conflict. One of "skip",  "remote_wins",
+            "local_wins", "newer"
 
         """
         self._local_root = osp.abspath(osp.expanduser(local))
@@ -100,7 +103,7 @@ class Synchronizer(FileTransferHandler):
         )
         # do the sync by comparing local and remote
         print("Comparing current local and remote states.")
-        self._cmp_local2remote(tree_loc, tree_rem)
+        self._cmp_local2remote(tree_loc, tree_rem, policy)
         # Save the new current state as old
         self._save_sync_state(local, remote)
 
@@ -232,7 +235,7 @@ class Synchronizer(FileTransferHandler):
                 tree_loc.remove_node(self._fix_path4local(d))
         return tree_rem, tree_loc
 
-    def _cmp_local2remote(self, tree_loc, tree_rem):
+    def _cmp_local2remote(self, tree_loc, tree_rem, policy):
         """Compare the changes in the local and remote trees.
 
         """
@@ -244,7 +247,7 @@ class Synchronizer(FileTransferHandler):
             if node_loc is not None:
                 # Only relevant for documents
                 if node_rem.entry_type == "document":
-                    self._handle_changes(node_loc, node_rem)
+                    self._handle_changes(node_loc, node_rem, policy)
             else:
                 # download
                 targetpath = osp.join(
@@ -283,7 +286,7 @@ class Synchronizer(FileTransferHandler):
                         node_loc.abspath, targetpath, "local_wins"
                     )
 
-    def _handle_changes(self, node_loc, node_rem):
+    def _handle_changes(self, node_loc, node_rem, policy=None):
         """Handle a difference of the local and remote nodes.
 
         """
@@ -302,10 +305,10 @@ class Synchronizer(FileTransferHandler):
             pass
         elif node_rem.sync_state == "modified" and node_loc.sync_state == "modified":
             # ask the user
-            self._askuser(node_loc, node_rem)
+            self._decideaction(node_loc, node_rem, policy)
         elif node_rem.sync_state == "new" and node_loc.sync_state == "new":
             # ask the user
-            self._askuser(node_loc, node_rem)
+            self._decideaction(node_loc, node_rem, policy)
         elif node_rem.sync_state == "equal" and node_loc.sync_state == "modified":
             # upload
             # print(
@@ -318,7 +321,7 @@ class Synchronizer(FileTransferHandler):
             )
         elif node_rem.sync_state == "equal" and node_loc.sync_state == "new":
             # ask the user (should not happen)
-            self._askuser(node_loc, node_rem)
+            self._decideaction(node_loc, node_rem, policy)
         elif node_rem.sync_state == "modified" and node_loc.sync_state == "equal":
             # download
             # print(
@@ -331,24 +334,32 @@ class Synchronizer(FileTransferHandler):
             )
         elif node_rem.sync_state == "new" and node_loc.sync_state == "equal":
             # ask the user (should not happen)
-            self._askuser(node_loc, node_rem)
+            self._decideaction(node_loc, node_rem, policy)
         elif node_rem.sync_state == "modified" and node_loc.sync_state == "new":
             # ask the user (should not happen)
-            self._askuser(node_loc, node_rem)
+            self._decideaction(node_loc, node_rem, policy)
         elif node_rem.sync_state == "new" and node_loc.sync_state == "modified":
             # ask the user (should not happen)
-            self._askuser(node_loc, node_rem)
+            self._decideaction(node_loc, node_rem, policy)
 
-    def _askuser(self, node_loc, node_rem):
+    def _decideaction(self, node_loc, node_rem, policy):
         """Ask the user what to do.
 
         """
-        message = "Conflict for node {}, reason L:{} R:{}".format(
-            node_loc.relpath, node_loc.sync_state, node_rem.sync_state
-        )
-        question = "Choose which version to keep [l]ocal, [r]emote, [s]kip: "
-        print("")
-        response = ""
+        if policy is None:
+            message = "Conflict for node {}, reason L:{} R:{}".format(
+                node_loc.relpath, node_loc.sync_state, node_rem.sync_state
+            )
+            question = "Choose which version to keep [l]ocal, [r]emote, [s]kip: "
+            print("")
+            response = ""
+        else:
+            if policy == "skip":
+                response = "s"
+            elif policy == "remote_wins":
+                response = "r"
+            elif policy == "local_wins":
+                response = "l"
         while response not in ["l", "r", "s"]:
             print(message)
             response = str(input(question))

@@ -291,20 +291,20 @@ Configuration files, id and key files are stored in ~/.dpmgr.
             help="Prefer the local file in case of a conflict.",
         )
         group2.add_argument(
-            "-n",
-            "--newer",
+            "-s",
+            "--skip",
             action="store_true",
-            help="Prefer the newer file in case of a conflict.",
+            help="Skip those files.",
         )
         # decide what to do
         args = parser.parse_args(sys.argv[2:])
-        policy = "skip"
+        policy = None
         if args.remote_wins:
             policy = "remote_wins"
         elif args.local_wins:
             policy = "local_wins"
-        elif args.newer:
-            policy = "newer"
+        elif args.skip:
+            policy = "skip"
         self._connect2device()
         self._dp_synchronizer.sync_folder(args.local, args.remote, policy)
 
@@ -313,8 +313,36 @@ Configuration files, id and key files are stored in ~/.dpmgr.
             description="Synchronize pairs defined in the config \
             file ~/.dpmgr/sync.conf."
         )
+        group2 = parser.add_mutually_exclusive_group()
+        group2.add_argument(
+            "-r",
+            "--remote_wins",
+            action="store_true",
+            help="Prefer the remote file in case of a conflict.",
+        )
+        group2.add_argument(
+            "-l",
+            "--local_wins",
+            action="store_true",
+            help="Prefer the local file in case of a conflict.",
+        )
+        group2.add_argument(
+            "-s",
+            "--skip",
+            action="store_true",
+            help="Skip those files.",
+        )
+        # decide what to do
+        args = parser.parse_args(sys.argv[2:])
+        policy = None
+        if args.remote_wins:
+            policy = "remote_wins"
+        elif args.local_wins:
+            policy = "local_wins"
+        elif args.skip:
+            policy = "skip"
         self._connect2device()
-        self._dp_synchronizer.sync_pairs()
+        self._dp_synchronizer.sync_pairs(policy)
 
     def config(self):
         parameterlist = ("timeout", "owner", "time_format", "date_format", "timezone")
