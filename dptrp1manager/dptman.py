@@ -183,10 +183,10 @@ class DPManager(object):
 
         """
         # use RNDIS mode
-        send_val = b"\x01\x00\x00\x01\x00\x00\x00\x01\x00\x04"
+        #send_val = b"\x01\x00\x00\x01\x00\x00\x00\x01\x00\x04"
 
         # use CDC/ECM mode
-        # send_val = b"\x01\x00\x00\x01\x00\x00\x00\x01\x01\x04"
+        send_val = b"\x01\x00\x00\x01\x00\x00\x00\x01\x01\x04"
         try:
             ser = serial.Serial(
                 "/dev/ttyACM0",
