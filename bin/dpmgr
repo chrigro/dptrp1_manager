@@ -207,7 +207,7 @@ Configuration files, id and key files are stored in ~/.dpmgr.
             description="List documents and directories on the digital paper device \
                     in a tree structure."
         )
-        parser.add_argument("remote_path", help="Path to the root remote directory.")
+        parser.add_argument("remote_path", help="Path to the root remote directory.", nargs='?', default='/')
         parser.add_argument(
             "-a",
             "--all",
