@@ -45,7 +45,8 @@ Some examples are given below:
 
 dpmgr status   # list the condition of your device
 dpmgr tree -a  # generate a file tree 
-dpmgr upload -d  local remote   # upload a directory
+dpmgr upload LocalFile RemoteFile
+dpmgr upload -d  LocalDir RemoteDir   # upload a directory
 dpmgr sync local Document       # synchronize remote Document directory with a local directory
 
 **Shell completion**
