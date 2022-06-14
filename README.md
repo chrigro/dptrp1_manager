@@ -36,18 +36,18 @@ on linux.
 Firstly, make sure you can connect DPT-RP1 with the `dptrp1` command.
 Creat a configuration file `~/.dpmgr/dpmgr.conf` which contains:
 
-[IP]
-ssid = ip
-default = xxx.xxx.xxx.xxx  # you can find the ip address with the `dptrp1` command
+    [IP]
+    ssid = ip
+    default = xxx.xxx.xxx.xxx  # you can find the ip address with the `dptrp1` command
 
 Then you can use `dpmgr config`  to initial your connection and run `dpmgr` command.
 Some examples are given below:
 
-dpmgr status   # list the condition of your device
-dpmgr tree -a  # generate a file tree 
-dpmgr upload LocalFile RemoteFile
-dpmgr upload -d  LocalDir RemoteDir   # upload a directory
-dpmgr sync local Document       # synchronize remote Document directory with a local directory
+    dpmgr status   # list the condition of your device
+    dpmgr tree -a  # generate a file tree 
+    dpmgr upload LocalFile RemoteFile
+    dpmgr upload -d  LocalDir RemoteDir   # upload a directory
+    dpmgr sync local Document       # synchronize remote Document directory with a local directory
 
 **Shell completion**
 
