@@ -19,7 +19,7 @@
 
 
 import argparse
-import sys
+import sys, os
 from pprint import pprint
 
 from dptrp1manager import dptman
@@ -193,6 +193,14 @@ Configuration files, id and key files are stored in ~/.dpmgr.
         elif args.newer:
             policy = "newer"
         self._connect2device()
+        
+        target = os.path.split(args.remote)
+        nodeset = self._dp_mgr.get_folder_contents(target[0])
+        nameset = []
+        for node in nodeset:
+            #~ nameset.append(node.entry_path)
+            nameset.append(node.entry_name)
+            
         if args.all:
             self._dp_downloader.download_recursively(args.remote, args.local, policy)
         elif args.dir:
@@ -200,8 +208,12 @@ Configuration files, id and key files are stored in ~/.dpmgr.
                 args.remote, args.local, policy
             )
         else:
-            self._dp_downloader.download_file(args.remote, args.local, policy)
-
+            
+            for fullname in nameset:
+                if target[1] in fullname:
+                    print("find ",fullname)
+                    self._dp_downloader.download_file(os.path.join(target[0],fullname), args.local, policy)
+                      
     def tree(self):
         parser = argparse.ArgumentParser(
             description="List documents and directories on the digital paper device \
@@ -217,9 +229,10 @@ Configuration files, id and key files are stored in ~/.dpmgr.
         args = parser.parse_args(sys.argv[2:])
         self._connect2device()
         if args.all:
-            self._dp_mgr.print_folder_contents(args.remote_path)
+            nameset = self._dp_mgr.print_folder_contents(args.remote_path)
         else:
             self._dp_mgr.print_dir_tree(args.remote_path)
+        print(nameset)
 
     def delete(self):
         parser = argparse.ArgumentParser(
@@ -250,14 +263,24 @@ Configuration files, id and key files are stored in ~/.dpmgr.
         # decide what to do
         args = parser.parse_args(sys.argv[2:])
         self._connect2device()
+        target = os.path.split(args.remote_path)
+        nodeset = self._dp_mgr.get_folder_contents(target[0])
+        nameset = []
+        for node in nodeset:
+            #~ nameset.append(node.entry_path)
+            nameset.append(node.entry_name)
+            
         if args.all:
             self._dp_mgr.rm_allfiles_recursively(args.remote_path)
         elif args.dir:
             self._dp_mgr.rm_allfiles(args.remote_path)
         elif args.recursively:
             self._dp_mgr.rm_all_recursively(args.remote_path)
-        else:
-            self._dp_mgr.rm(args.remote_path)
+        else:            
+            for fullname in nameset:
+                if target[1] in fullname:
+                    print("find ",fullname)
+                    self._dp_mgr.rm(os.path.join(target[0],fullname))
 
     def mkdir(self):
         parser = argparse.ArgumentParser(
