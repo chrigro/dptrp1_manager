@@ -47,6 +47,7 @@ Some examples are given below:
     dpmgr tree -a  # generate a file tree 
     dpmgr upload LocalFile RemoteFile
     dpmgr upload -d  LocalDir RemoteDir   # upload a directory
+    dpmgr delete/download  RemoteFile  # a part of the filename is acceptable
     dpmgr sync local Document       # synchronize remote Document directory with a local directory
 
 **Shell completion**
