@@ -41,7 +41,7 @@ class DPConfig(object):
         """
         res = self._dp_mgr.dp.list_templates()
         tmp_list = []
-        for template in res["template_list"]:
+        for template in res:
             tmp_list.append(template["template_name"])
         return tmp_list
 
